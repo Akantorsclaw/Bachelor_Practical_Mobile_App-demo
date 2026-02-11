@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase iOS config (keep local, do not commit)
+ios/Runner/GoogleService-Info.plist
