@@ -68,6 +68,9 @@ class SessionController extends ChangeNotifier {
   /// Best-effort email for the UI.
   String get userEmail => _profile?.email ?? _firebaseUser?.email ?? '';
 
+  /// Currently authenticated Firebase uid, if available.
+  String? get userId => _firebaseUser?.uid;
+
   /// Switches the currently displayed auth sub-view.
   void goToAuthView(AuthView view) {
     _authView = view;
@@ -173,6 +176,45 @@ class SessionController extends ChangeNotifier {
       return _mapAuthError(e);
     } catch (_) {
       return 'Could not send reset email. Try again.';
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Updates profile name/email and persists to Firestore.
+  ///
+  /// If email changes, Firebase Auth email is updated first.
+  Future<String?> updateProfile({
+    required String name,
+    required String email,
+  }) async {
+    final user = _firebaseUser;
+    if (user == null) return 'No authenticated user.';
+
+    final nextName = name.trim();
+    final nextEmail = email.trim().toLowerCase();
+    if (nextName.isEmpty) return 'Name cannot be empty.';
+    if (nextEmail.isEmpty) return 'Email cannot be empty.';
+
+    _setBusy(true);
+    try {
+      final currentEmail = user.email?.trim().toLowerCase() ?? '';
+      if (nextEmail != currentEmail) {
+        await _authService.updateEmail(nextEmail);
+      }
+      await _userProfileService.updateUserProfile(
+        uid: user.uid,
+        email: nextEmail,
+        name: nextName,
+      );
+      return null;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return 'For security, please log in again before changing your email.';
+      }
+      return _mapAuthError(e);
+    } catch (_) {
+      return 'Profile update failed. Please try again.';
     } finally {
       _setBusy(false);
     }

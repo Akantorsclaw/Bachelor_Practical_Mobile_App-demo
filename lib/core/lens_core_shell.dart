@@ -1,9 +1,18 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../app/session_controller.dart';
 import '../branding/brand_context.dart';
+import '../models/app_lens.dart';
+import '../models/lens_passport_data.dart';
+import '../services/lens_parameter_info_service.dart';
+import '../services/lens_service.dart';
+import '../services/lens_pass_qr_parser.dart';
 import '../shared/app_widgets.dart';
+import '../shared/validators.dart';
 
 /// Main authenticated shell with bottom-tab navigation.
 class LensCoreShell extends StatefulWidget {
@@ -16,47 +25,113 @@ class LensCoreShell extends StatefulWidget {
 }
 
 class _LensCoreShellState extends State<LensCoreShell> {
-  int _index = 0;
-  bool _isTransitioning = false;
-  RatingData? _opticianRating;
-  final List<LensItem> _lenses = [
-    LensItem(
-      name: 'Lens Name',
-      purchaseDate: '2024-02-16',
-      optician: 'Optician A',
-    ),
-    LensItem(
-      name: 'Lens Name',
-      purchaseDate: '2024-06-04',
-      optician: 'Optician B',
-    ),
-  ];
+  static const _qrParser = LensPassQrParser();
+  final _lensService = LensService(FirebaseFirestore.instance);
 
-  /// Adds a lens item to in-memory list and switches to lens list tab.
-  void _addLens(String serial, String optician) {
-    setState(() {
-      _lenses.insert(
-        0,
-        LensItem(
-          name: serial.isEmpty ? 'Lens Name' : serial,
-          purchaseDate: DateTime.now().toIso8601String().split('T').first,
-          optician: optician.isEmpty ? 'Unknown' : optician,
-        ),
-      );
-      _index = 1;
-    });
+  int _index = 0;
+  bool _loadingLenses = true;
+  RatingData? _opticianRating;
+  List<LensItem> _lenses = [];
+  StreamSubscription<List<AppLens>>? _lensesSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeLenses();
   }
 
-  /// Updates active bottom-tab index.
-  Future<void> _showTransitionLoader() async {
-    setState(() => _isTransitioning = true);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
+  @override
+  void didUpdateWidget(covariant LensCoreShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller.userId != widget.controller.userId) {
+      _subscribeLenses();
+    }
+  }
+
+  @override
+  void dispose() {
+    _lensesSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeLenses() {
+    _lensesSubscription?.cancel();
+    final uid = widget.controller.userId;
+    if (uid == null) {
+      setState(() {
+        _lenses = [];
+        _loadingLenses = false;
+      });
+      return;
+    }
+    setState(() => _loadingLenses = true);
+    _lensesSubscription = _lensService
+        .watchLenses(uid)
+        .listen(
+          (data) {
+            if (!mounted) return;
+            setState(() {
+              _lenses = data.map(_toLensItem).toList();
+              _loadingLenses = false;
+            });
+          },
+          onError: (_) {
+            if (!mounted) return;
+            setState(() => _loadingLenses = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not load lenses from Firestore.'),
+              ),
+            );
+          },
+        );
+  }
+
+  LensItem _toLensItem(AppLens lens) {
+    return LensItem(
+      id: lens.id,
+      name: lens.name,
+      purchaseDate: lens.purchaseDate,
+      optician: lens.optician,
+      passportData: lens.passportData,
+    );
+  }
+
+  Future<void> _addLens(LensItem lens) async {
+    final uid = widget.controller.userId;
+    if (uid == null) return;
+    try {
+      await _lensService.createLens(
+        uid,
+        AppLens(
+          id: lens.id,
+          name: lens.name,
+          purchaseDate: lens.purchaseDate,
+          optician: lens.optician,
+          passportData: lens.passportData,
+        ),
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      final message = e.code == 'permission-denied'
+          ? 'Saving lens failed: Firestore rules currently deny this write.'
+          : 'Saving lens failed. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saving lens failed. Please try again.')),
+      );
+      return;
+    }
     if (!mounted) return;
-    setState(() => _isTransitioning = false);
+    setState(() => _index = 1);
   }
 
   Future<void> _selectTab(int index) async {
-    await _showTransitionLoader();
     if (!mounted) return;
     setState(() => _index = index);
   }
@@ -70,12 +145,11 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens lens registration as a pushed detail screen.
   Future<void> _openRegisterLens() async {
-    await _showTransitionLoader();
-    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RegisterLensScreen(
           onRegisterLens: _addLens,
+          qrParser: _qrParser,
           onTabSelected: _navigateFromOverlay,
         ),
       ),
@@ -84,8 +158,6 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens passport details for the selected lens.
   Future<void> _openPassport(LensItem lens) async {
-    await _showTransitionLoader();
-    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) =>
@@ -96,8 +168,6 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens optician rating flow and stores latest result in memory.
   Future<void> _openRateOptician() async {
-    await _showTransitionLoader();
-    if (!mounted) return;
     final result = await Navigator.of(context).push<RatingData>(
       MaterialPageRoute(
         builder: (_) => RateLensScreen(
@@ -115,8 +185,6 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens profile notification settings screen.
   Future<void> _openNotificationSettings() async {
-    await _showTransitionLoader();
-    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) =>
@@ -127,8 +195,6 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens profile privacy and data protection screen.
   Future<void> _openPrivacyDataProtection() async {
-    await _showTransitionLoader();
-    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PrivacyDataProtectionScreen(
@@ -153,6 +219,34 @@ class _LensCoreShellState extends State<LensCoreShell> {
     return null;
   }
 
+  Future<void> _deleteLens(LensItem lens) async {
+    final uid = widget.controller.userId;
+    if (uid == null) return;
+    try {
+      await _lensService.deleteLens(uid, lens.id);
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      final message = e.code == 'permission-denied'
+          ? 'Delete failed: Firestore rules currently deny this delete.'
+          : 'Delete failed. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delete failed. Please try again.')),
+      );
+    }
+  }
+
+  Future<String?> _updateProfile({
+    required String name,
+    required String email,
+  }) {
+    return widget.controller.updateProfile(name: name, email: email);
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
@@ -162,13 +256,19 @@ class _LensCoreShellState extends State<LensCoreShell> {
         onGoLenses: () => setState(() => _index = 1),
         onRate: _openRateOptician,
       ),
-      LensesListScreen(lenses: _lenses, onOpenDetails: _openPassport),
+      LensesListScreen(
+        lenses: _lenses,
+        loading: _loadingLenses,
+        onOpenDetails: _openPassport,
+        onDeleteLens: _deleteLens,
+      ),
       ProfileOverviewScreen(
         name: widget.controller.userName,
         email: widget.controller.userEmail,
         selectedOptician: _lenses.isEmpty
             ? 'No optician selected'
             : _lenses.first.optician,
+        onUpdateProfile: _updateProfile,
         onNotificationSettings: _openNotificationSettings,
         onPrivacy: _openPrivacyDataProtection,
         onLogout: widget.controller.signOut,
@@ -186,12 +286,22 @@ class _LensCoreShellState extends State<LensCoreShell> {
       child: Scaffold(
         body: Stack(
           children: [
-            SafeArea(child: pages[_index]),
-            if (_isTransitioning || widget.controller.busy)
+            SafeArea(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: KeyedSubtree(
+                  key: ValueKey(_index),
+                  child: pages[_index],
+                ),
+              ),
+            ),
+            if (widget.controller.busy)
               Positioned.fill(
                 child: ColoredBox(
-                  color: palette.overlay,
-                  child: Center(child: CircularProgressIndicator()),
+                  color: palette.scaffoldBackground.withValues(alpha: 0.9),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
               ),
           ],
@@ -299,10 +409,12 @@ class RegisterLensScreen extends StatefulWidget {
   const RegisterLensScreen({
     super.key,
     required this.onRegisterLens,
+    required this.qrParser,
     required this.onTabSelected,
   });
 
-  final void Function(String serial, String optician) onRegisterLens;
+  final Future<void> Function(LensItem lens) onRegisterLens;
+  final LensPassQrParser qrParser;
   final ValueChanged<int> onTabSelected;
 
   @override
@@ -312,15 +424,28 @@ class RegisterLensScreen extends StatefulWidget {
 class _RegisterLensScreenState extends State<RegisterLensScreen> {
   final _serial = TextEditingController();
   String? _selectedOptician;
+  LensPassportData? _parsedPassport;
 
   Future<void> _scanQrCode() async {
     final scannedValue = await Navigator.of(
       context,
     ).push<String>(MaterialPageRoute(builder: (_) => const QrScannerScreen()));
     if (!mounted || scannedValue == null || scannedValue.isEmpty) return;
-    setState(() => _serial.text = scannedValue);
+    final parsed = widget.qrParser.parse(scannedValue);
+    setState(() {
+      _parsedPassport = parsed;
+      _serial.text = parsed?.lensDesign != null && parsed!.lensDesign != '-'
+          ? parsed.lensDesign
+          : scannedValue;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('QR code scanned successfully.')),
+      SnackBar(
+        content: Text(
+          parsed == null
+              ? 'QR code scanned. No passport fields found.'
+              : 'QR code scanned and passport data extracted.',
+        ),
+      ),
     );
   }
 
@@ -417,11 +542,27 @@ class _RegisterLensScreenState extends State<RegisterLensScreen> {
           ),
           const SizedBox(height: 28),
           FilledButton.icon(
-            onPressed: () {
-              widget.onRegisterLens(
-                _serial.text.trim(),
-                _selectedOptician ?? '',
+            onPressed: () async {
+              final nowDate = DateTime.now().toIso8601String().split('T').first;
+              final parsed = _parsedPassport;
+              final optician = _selectedOptician ?? '';
+              await widget.onRegisterLens(
+                LensItem(
+                  id: '',
+                  name: _serial.text.trim().isEmpty
+                      ? (parsed?.lensDesign != null && parsed!.lensDesign != '-'
+                            ? parsed.lensDesign
+                            : 'Lens Name')
+                      : _serial.text.trim(),
+                  purchaseDate:
+                      parsed?.orderDate != null && parsed!.orderDate != '-'
+                      ? parsed.orderDate
+                      : nowDate,
+                  optician: optician.isEmpty ? 'Unknown' : optician,
+                  passportData: parsed,
+                ),
               );
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Lens registered successfully.')),
               );
@@ -457,15 +598,30 @@ class LensesListScreen extends StatelessWidget {
   const LensesListScreen({
     super.key,
     required this.lenses,
+    required this.loading,
     required this.onOpenDetails,
+    required this.onDeleteLens,
   });
 
   final List<LensItem> lenses;
+  final bool loading;
   final void Function(LensItem lens) onOpenDetails;
+  final Future<void> Function(LensItem lens) onDeleteLens;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (lenses.isEmpty) {
+      return Center(
+        child: Text(
+          'No registered lenses yet.',
+          style: TextStyle(color: palette.textSecondary),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       itemCount: lenses.length,
@@ -502,6 +658,36 @@ class LensesListScreen extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: palette.textPrimary,
                       ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete lens',
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Lens'),
+                          content: Text(
+                            'Delete "${lens.name}" from saved lenses?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed != true) return;
+                      await onDeleteLens(lens);
+                    },
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
@@ -600,13 +786,14 @@ class _LensPassportScreenState extends State<LensPassportScreen> {
                 key: const ValueKey('lens-details'),
                 lens: widget.lens,
               ),
-              _PassportTab.prescription => const _PassportPrescription(
-                key: ValueKey('prescription'),
+              _PassportTab.prescription => _PassportPrescription(
+                key: const ValueKey('prescription'),
+                lens: widget.lens,
               ),
-              _PassportTab.frameMeasurements =>
-                const _PassportFrameMeasurements(
-                  key: ValueKey('frame-measurements'),
-                ),
+              _PassportTab.frameMeasurements => _PassportFrameMeasurements(
+                key: const ValueKey('frame-measurements'),
+                lens: widget.lens,
+              ),
             },
           ),
         ],
@@ -701,24 +888,56 @@ class _PassportLensDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    final passport = lens.passportData;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _passportInfoRow(context, 'Lens Design', 'Hoyalux iD MySense'),
-        _passportInfoRow(context, 'Antireflex Coating', 'Hi-Vision MEIRYO'),
-        _passportInfoRow(context, 'Material', '1.60'),
-        _passportInfoRow(context, 'Design Variation Code', '309'),
-        _passportInfoRow(context, 'My Design Selection', '000002'),
+        _passportInfoRow(
+          context,
+          code: 'LC',
+          label: 'Lens Design',
+          value: passport?.lensDesign ?? 'Hoyalux iD MySense',
+        ),
+        _passportInfoRow(
+          context,
+          code: 'AC',
+          label: 'Antireflex Coating',
+          value: passport?.antiReflexCoating ?? 'Hi-Vision MEIRYO',
+        ),
+        _passportInfoRow(
+          context,
+          code: 'MC',
+          label: 'Material',
+          value: passport?.material ?? '1.60',
+        ),
+        _passportInfoRow(
+          context,
+          code: 'DVC',
+          label: 'Design Variation Code',
+          value: passport?.designVariationCode ?? '309',
+        ),
+        _passportInfoRow(
+          context,
+          code: 'MDS',
+          label: 'My Design Selection',
+          value: passport?.myDesignSelection ?? '000002',
+        ),
         const SizedBox(height: 12),
         Text(
-          'Registered Lens: ${lens.name} • ${lens.purchaseDate} • ${lens.optician}',
+          'Registered Lens: ${lens.name} • ${lens.purchaseDate} • ${lens.optician}'
+          '${passport != null ? ' • Order ${passport.orderNumber}' : ''}',
           style: TextStyle(color: palette.textSecondary, fontSize: 13),
         ),
       ],
     );
   }
 
-  Widget _passportInfoRow(BuildContext context, String label, String value) {
+  Widget _passportInfoRow(
+    BuildContext context, {
+    required String code,
+    required String label,
+    required String value,
+  }) {
     final palette = context.brandPalette;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -728,15 +947,19 @@ class _PassportLensDetails extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 14, color: palette.textPrimary),
-              ),
-              const SizedBox(width: 6),
-              Icon(Icons.info_rounded, color: palette.textPrimary, size: 16),
-            ],
+          InkWell(
+            onTap: () => _showInfoCard(context, code: code, fieldName: label),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 14, color: palette.textPrimary),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.info_rounded, color: palette.textPrimary, size: 16),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -751,14 +974,59 @@ class _PassportLensDetails extends StatelessWidget {
       ),
     );
   }
+
+  void _showInfoCard(
+    BuildContext context, {
+    required String code,
+    required String fieldName,
+  }) {
+    final palette = context.brandPalette;
+    final info = LensParameterInfoService.explanationForCode(code);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                fieldName,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                info,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.35,
+                  color: palette.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _PassportPrescription extends StatelessWidget {
-  const _PassportPrescription({super.key});
+  const _PassportPrescription({super.key, required this.lens});
+
+  final LensItem lens;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    final right = lens.passportData?.right;
+    final left = lens.passportData?.left;
     return Column(
       children: [
         Row(
@@ -787,25 +1055,29 @@ class _PassportPrescription extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['SR', 'SL'],
           label: 'Sphere Power',
-          rightValue: '-1.03',
-          leftValue: '-2.52',
+          rightValue: right?.spherePower ?? '-1.03',
+          leftValue: left?.spherePower ?? '-2.52',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['CR', 'CL'],
           label: 'Cylinder Power',
-          rightValue: '-0.98',
-          leftValue: '-0.76',
+          rightValue: right?.cylinderPower ?? '-0.98',
+          leftValue: left?.cylinderPower ?? '-0.76',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['XR', 'XL'],
           label: 'Cylinder Axis (°)',
-          rightValue: '175',
-          leftValue: '45',
+          rightValue: right?.cylinderAxis ?? '175',
+          leftValue: left?.cylinderAxis ?? '45',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['AR', 'AL'],
           label: 'Addition Power',
-          rightValue: '2.01',
-          leftValue: '2.01',
+          rightValue: right?.additionPower ?? '2.01',
+          leftValue: left?.additionPower ?? '2.01',
         ),
       ],
     );
@@ -813,11 +1085,16 @@ class _PassportPrescription extends StatelessWidget {
 }
 
 class _PassportFrameMeasurements extends StatelessWidget {
-  const _PassportFrameMeasurements({super.key});
+  const _PassportFrameMeasurements({super.key, required this.lens});
+
+  final LensItem lens;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    final right = lens.passportData?.right;
+    final left = lens.passportData?.left;
+    final frameFaceAngle = lens.passportData?.frameFaceAngle;
     return Column(
       children: [
         Row(
@@ -846,45 +1123,53 @@ class _PassportFrameMeasurements extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['PDR', 'PDL'],
           label: 'Pupil Distance (mm)',
-          rightValue: '32.0',
-          leftValue: '32.0',
+          rightValue: right?.pupilDistance ?? '32.0',
+          leftValue: left?.pupilDistance ?? '32.0',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['EPR', 'EPL'],
           label: 'Eyepoint Height (mm)',
-          rightValue: '25.0',
-          leftValue: '25.0',
+          rightValue: right?.eyepointHeight ?? '25.0',
+          leftValue: left?.eyepointHeight ?? '25.0',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['IR', 'IL'],
           label: 'Inset (mm)',
-          rightValue: '2.25',
-          leftValue: '2.29',
+          rightValue: right?.inset ?? '2.25',
+          leftValue: left?.inset ?? '2.29',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['RFC', 'LFC'],
           label: 'Cornea Vertex Distance (mm)',
-          rightValue: '16.50',
-          leftValue: '16.50',
+          rightValue: right?.corneaVertexDistance ?? '16.50',
+          leftValue: left?.corneaVertexDistance ?? '16.50',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['ALR', 'ALL'],
           label: 'Axial Length (mm)',
-          rightValue: '23',
-          leftValue: '23',
+          rightValue: right?.axialLength ?? '23',
+          leftValue: left?.axialLength ?? '23',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['RPA', 'LPA'],
           label: 'Pantoscopic Angle (°)',
-          rightValue: '5.15°',
-          leftValue: '5.12',
+          rightValue: right?.pantoscopicAngle ?? '5.15',
+          leftValue: left?.pantoscopicAngle ?? '5.12',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['FL', 'FL'],
           label: 'Frame or Lens Measurements',
-          rightValue: 'F',
-          leftValue: 'F',
+          rightValue: right?.frameOrLensMeasurement ?? 'F',
+          leftValue: left?.frameOrLensMeasurement ?? 'F',
         ),
-        const _PassportDualValueRow(
+        _PassportDualValueRow(
+          parameterCodes: const ['FFA', 'FFA'],
           label: 'Frame Face Angle (°)',
-          rightValue: '7.1',
-          leftValue: '7.1',
+          rightValue: frameFaceAngle ?? '7.1',
+          leftValue: frameFaceAngle ?? '7.1',
         ),
       ],
     );
@@ -893,11 +1178,13 @@ class _PassportFrameMeasurements extends StatelessWidget {
 
 class _PassportDualValueRow extends StatelessWidget {
   const _PassportDualValueRow({
+    required this.parameterCodes,
     required this.label,
     required this.rightValue,
     required this.leftValue,
   });
 
+  final List<String> parameterCodes;
   final String label;
   final String rightValue;
   final String leftValue;
@@ -921,23 +1208,31 @@ class _PassportDualValueRow extends StatelessWidget {
           ),
           Expanded(
             flex: 2,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.2,
-                      color: palette.textPrimary,
+            child: InkWell(
+              onTap: () => _showInfoCard(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.2,
+                        color: palette.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Icon(Icons.info_rounded, color: palette.textPrimary, size: 16),
-              ],
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.info_rounded,
+                    color: palette.textPrimary,
+                    size: 16,
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -953,6 +1248,45 @@ class _PassportDualValueRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showInfoCard(BuildContext context) {
+    final palette = context.brandPalette;
+    final info = LensParameterInfoService.explanationForCode(
+      parameterCodes.first,
+    );
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                info,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.35,
+                  color: palette.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -1312,6 +1646,7 @@ class ProfileOverviewScreen extends StatelessWidget {
     required this.name,
     required this.email,
     required this.selectedOptician,
+    required this.onUpdateProfile,
     required this.onNotificationSettings,
     required this.onPrivacy,
     required this.onLogout,
@@ -1320,117 +1655,245 @@ class ProfileOverviewScreen extends StatelessWidget {
   final String name;
   final String email;
   final String selectedOptician;
+  final Future<String?> Function({required String name, required String email})
+  onUpdateProfile;
   final Future<void> Function() onNotificationSettings;
   final Future<void> Function() onPrivacy;
   final Future<void> Function() onLogout;
 
+  Future<void> _editProfile(BuildContext context) async {
+    final draft = await showDialog<_ProfileDraft>(
+      context: context,
+      builder: (context) =>
+          _EditProfileDialog(initialName: name, initialEmail: email),
+    );
+    if (draft == null || !context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Profile Update'),
+          content: const Text('Do you want to save these profile changes?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Update'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final error = await onUpdateProfile(name: draft.name, email: draft.email);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error ?? 'Profile updated successfully.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Center(
-            child: Text(
-              'Profile settings',
-              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w500),
-            ),
+      children: [
+        const Center(
+          child: Text(
+            'Profile settings',
+            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 16),
-          _ProfileInfoCard(title: 'Name', value: name),
-          const SizedBox(height: 10),
-          _ProfileInfoCard(title: 'Email', value: email),
-          const SizedBox(height: 10),
-          _ProfileInfoCard(title: 'Selected Optician', value: selectedOptician),
-          const Spacer(),
-          Center(
-            child: SecondaryPillButton(
-              text: 'Edit Profile',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Edit profile flow not implemented yet.'),
-                  ),
-                );
-              },
-            ),
+        ),
+        const SizedBox(height: 16),
+        _ProfileInfoCard(title: 'Name', value: name),
+        const SizedBox(height: 10),
+        _ProfileInfoCard(title: 'Email', value: email),
+        const SizedBox(height: 10),
+        _ProfileInfoCard(title: 'Selected Optician', value: selectedOptician),
+        const SizedBox(height: 24),
+        Center(
+          child: SecondaryPillButton(
+            text: 'Edit Profile',
+            onTap: () => _editProfile(context),
           ),
-          const SizedBox(height: 14),
-          Center(
-            child: SecondaryPillButton(
-              text: 'Change Optician',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Change optician flow not implemented yet.'),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 14),
-          Center(
-            child: SecondaryPillButton(
-              text: 'Notification Settings',
-              onTap: () => onNotificationSettings(),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Center(
-            child: SecondaryPillButton(
-              text: 'Privacy & Data',
-              onTap: () => onPrivacy(),
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: const Text('Confirm Logout'),
-                      content: const Text(
-                        'Do you really want to log out of your account?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('Logout'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-                if (confirmed == true) {
-                  await onLogout();
-                }
-              },
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text(
-                'Logout',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                backgroundColor: colors.error,
-                foregroundColor: colors.onError,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: SecondaryPillButton(
+            text: 'Change Optician',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Change optician flow not implemented yet.'),
                 ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: SecondaryPillButton(
+            text: 'Notification Settings',
+            onTap: () => onNotificationSettings(),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: SecondaryPillButton(
+            text: 'Privacy & Data',
+            onTap: () => onPrivacy(),
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('Confirm Logout'),
+                    content: const Text(
+                      'Do you really want to log out of your account?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  );
+                },
+              );
+              if (confirmed == true) {
+                await onLogout();
+              }
+            },
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text(
+              'Logout',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              backgroundColor: colors.error,
+              foregroundColor: colors.onError,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileDraft {
+  const _ProfileDraft({required this.name, required this.email});
+
+  final String name;
+  final String email;
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({
+    required this.initialName,
+    required this.initialEmail,
+  });
+
+  final String initialName;
+  final String initialEmail;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
+
+    Navigator.of(context).pop(
+      _ProfileDraft(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Profile'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'Enter your name',
+              ),
+              validator: (value) {
+                if ((value ?? '').trim().isEmpty) return 'Enter your name';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'name@example.com',
+              ),
+              validator: validateEmail,
+              onFieldSubmitted: (_) => _save(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Continue')),
+      ],
     );
   }
 }
@@ -1745,14 +2208,18 @@ Widget _privacyCard({required Widget child}) {
 /// Simple in-memory lens model used by prototype flows.
 class LensItem {
   const LensItem({
+    required this.id,
     required this.name,
     required this.purchaseDate,
     required this.optician,
+    this.passportData,
   });
 
+  final String id;
   final String name;
   final String purchaseDate;
   final String optician;
+  final LensPassportData? passportData;
 }
 
 /// In-memory rating payload used between rating screens.

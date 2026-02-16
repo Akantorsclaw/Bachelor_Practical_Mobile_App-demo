@@ -27,6 +27,9 @@ Future<void> main() async {
     );
   }
 
+  // Product requirement: never persist a logged-in session across app restarts.
+  await FirebaseAuth.instance.signOut();
+
   final controller = SessionController(
     authService: AuthService(FirebaseAuth.instance),
     userProfileService: UserProfileService(FirebaseFirestore.instance),

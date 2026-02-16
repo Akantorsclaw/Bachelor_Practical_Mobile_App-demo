@@ -11,6 +11,19 @@ This file tracks stable restore points for this project.
 
 ## Checkpoint List
 
+### 002 - Branding + Passport + Profile Edit + UX Fixes
+- Tag: `checkpoint/002-branding-passport-profile-ux`
+- Contains:
+  - Branding system rollout (assets + palette-driven screens)
+  - Auth screen redesign and asset-based logo usage
+  - Digital Lens Passport data parsing from QR URL parameters
+  - Lens persistence in Firestore under `users/{uid}/lenses`
+  - Lens delete support from list view
+  - Profile edit flow with confirmation before update
+  - Logout confirmation and lifecycle logout behavior
+  - Profile overflow fix (screen now scrolls on smaller viewports)
+  - Multiple UI updates across home/lens/rating/passport flows
+
 ### 001 - Refactor + Firebase + QR + Loaders
 - Tag: `checkpoint/001-refactor-firebase-qr-loaders`
 - Commit: `49261c7`
@@ -44,4 +57,3 @@ This file tracks stable restore points for this project.
 3. Main flow manually smoke-tested
 4. Commit message describes scope clearly
 5. Tag message summarizes feature set
-

@@ -57,4 +57,17 @@ class UserProfileService {
       'updatedAt': now,
     }, SetOptions(merge: true));
   }
+
+  /// Updates editable profile fields.
+  Future<void> updateUserProfile({
+    required String uid,
+    required String email,
+    required String name,
+  }) {
+    return _users.doc(uid).set({
+      'email': email,
+      'name': name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 }

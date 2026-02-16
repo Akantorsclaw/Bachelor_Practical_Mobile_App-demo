@@ -20,14 +20,9 @@ class AuthFlow extends StatefulWidget {
 /// State holder for auth flow view switching and async handlers.
 class _AuthFlowState extends State<AuthFlow> {
   SessionController get _controller => widget.controller;
-  bool _isTransitioning = false;
 
   Future<void> _transitionTo(AuthView view) async {
-    setState(() => _isTransitioning = true);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
-    if (!mounted) return;
     _controller.goToAuthView(view);
-    setState(() => _isTransitioning = false);
   }
 
   @override
@@ -68,10 +63,10 @@ class _AuthFlowState extends State<AuthFlow> {
                   ),
                 },
               ),
-              if (_controller.busy || _isTransitioning)
+              if (_controller.busy)
                 Positioned.fill(
                   child: ColoredBox(
-                    color: palette.overlay,
+                    color: palette.scaffoldBackground.withValues(alpha: 0.9),
                     child: const Center(child: CircularProgressIndicator()),
                   ),
                 ),
