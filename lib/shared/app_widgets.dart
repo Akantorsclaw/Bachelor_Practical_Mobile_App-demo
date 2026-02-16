@@ -131,8 +131,8 @@ class AppBottomNavigation extends StatelessWidget {
           label: 'Home',
         ),
         NavigationDestination(
-          icon: Icon(Icons.stars_outlined),
-          selectedIcon: Icon(Icons.stars),
+          icon: Icon(Icons.remove_red_eye_outlined),
+          selectedIcon: Icon(Icons.remove_red_eye),
           label: 'Lenses',
         ),
         NavigationDestination(

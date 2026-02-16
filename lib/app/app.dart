@@ -33,13 +33,15 @@ class _StartupGate extends StatefulWidget {
   State<_StartupGate> createState() => _StartupGateState();
 }
 
-class _StartupGateState extends State<_StartupGate> {
+class _StartupGateState extends State<_StartupGate>
+    with WidgetsBindingObserver {
   bool _showStartup = true;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _timer = Timer(const Duration(milliseconds: 900), () {
       if (!mounted) return;
       setState(() => _showStartup = false);
@@ -48,8 +50,16 @@ class _StartupGateState extends State<_StartupGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      unawaited(widget.controller.signOutSilently());
+    }
   }
 
   @override

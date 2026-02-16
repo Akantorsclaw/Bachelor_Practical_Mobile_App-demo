@@ -190,6 +190,20 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  /// Signs out without triggering loading UI.
+  ///
+  /// Used for lifecycle-driven logout when the app is being closed.
+  Future<void> signOutSilently() async {
+    if (_firebaseUser == null) return;
+    try {
+      await _authService.signOut();
+      _authView = AuthView.login;
+      notifyListeners();
+    } catch (_) {
+      // Best effort for lifecycle shutdown.
+    }
+  }
+
   /// Processes GDPR withdrawal and logs the user out.
   ///
   /// Attempts to delete the profile document and auth user record.

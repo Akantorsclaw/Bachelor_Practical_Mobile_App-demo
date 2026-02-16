@@ -19,6 +19,9 @@ class BrandPalette {
     required this.border,
     required this.onPrimary,
     required this.onSurface,
+    required this.accentSoft,
+    required this.segmentSelected,
+    required this.onSegmentSelected,
   });
 
   final Color primary;
@@ -35,4 +38,7 @@ class BrandPalette {
   final Color border;
   final Color onPrimary;
   final Color onSurface;
+  final Color accentSoft;
+  final Color segmentSelected;
+  final Color onSegmentSelected;
 }

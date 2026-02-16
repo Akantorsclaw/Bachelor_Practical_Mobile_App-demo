@@ -56,6 +56,21 @@ class BrandThemeExtension extends ThemeExtension<BrandThemeExtension> {
         border: Color.lerp(palette.border, other.palette.border, t)!,
         onPrimary: Color.lerp(palette.onPrimary, other.palette.onPrimary, t)!,
         onSurface: Color.lerp(palette.onSurface, other.palette.onSurface, t)!,
+        accentSoft: Color.lerp(
+          palette.accentSoft,
+          other.palette.accentSoft,
+          t,
+        )!,
+        segmentSelected: Color.lerp(
+          palette.segmentSelected,
+          other.palette.segmentSelected,
+          t,
+        )!,
+        onSegmentSelected: Color.lerp(
+          palette.onSegmentSelected,
+          other.palette.onSegmentSelected,
+          t,
+        )!,
       ),
     );
   }

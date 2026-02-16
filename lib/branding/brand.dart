@@ -40,6 +40,9 @@ class AppBrand {
       border: Color(0xFFDADCE2),
       onPrimary: Color(0xFFFFFFFF),
       onSurface: Color(0xFF2D2A28),
+      accentSoft: Color(0xFFF0F1F4),
+      segmentSelected: Color(0xFF0057BC),
+      onSegmentSelected: Color(0xFFFFFFFF),
     ),
   );
 }

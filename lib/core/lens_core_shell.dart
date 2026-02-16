@@ -18,7 +18,6 @@ class LensCoreShell extends StatefulWidget {
 class _LensCoreShellState extends State<LensCoreShell> {
   int _index = 0;
   bool _isTransitioning = false;
-  RatingData? _lensRating;
   RatingData? _opticianRating;
   final List<LensItem> _lenses = [
     LensItem(
@@ -89,32 +88,10 @@ class _LensCoreShellState extends State<LensCoreShell> {
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LensPassportScreen(
-          lens: lens,
-          onRateLens: () => _openRateLens(lens),
-          onTabSelected: _navigateFromOverlay,
-        ),
+        builder: (_) =>
+            LensPassportScreen(lens: lens, onTabSelected: _navigateFromOverlay),
       ),
     );
-  }
-
-  /// Opens lens rating flow and stores latest result in memory.
-  Future<void> _openRateLens(LensItem lens) async {
-    await _showTransitionLoader();
-    if (!mounted) return;
-    final result = await Navigator.of(context).push<RatingData>(
-      MaterialPageRoute(
-        builder: (_) => RateLensScreen(
-          title: 'Your Lens',
-          submitLabel: 'Submit rating',
-          initialRating: _lensRating,
-          onTabSelected: _navigateFromOverlay,
-        ),
-      ),
-    );
-    if (result != null) {
-      setState(() => _lensRating = result);
-    }
   }
 
   /// Opens optician rating flow and stores latest result in memory.
@@ -184,7 +161,6 @@ class _LensCoreShellState extends State<LensCoreShell> {
         onGoRegister: _openRegisterLens,
         onGoLenses: () => setState(() => _index = 1),
         onRate: _openRateOptician,
-        onLogout: widget.controller.signOut,
       ),
       LensesListScreen(lenses: _lenses, onOpenDetails: _openPassport),
       ProfileOverviewScreen(
@@ -195,27 +171,37 @@ class _LensCoreShellState extends State<LensCoreShell> {
             : _lenses.first.optician,
         onNotificationSettings: _openNotificationSettings,
         onPrivacy: _openPrivacyDataProtection,
+        onLogout: widget.controller.signOut,
       ),
     ];
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          SafeArea(child: pages[_index]),
-          if (_isTransitioning || widget.controller.busy)
-            Positioned.fill(
-              child: ColoredBox(
-                color: palette.overlay,
-                child: Center(child: CircularProgressIndicator()),
+    return PopScope(
+      canPop: _index == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_index != 0) {
+          setState(() => _index = 0);
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            SafeArea(child: pages[_index]),
+            if (_isTransitioning || widget.controller.busy)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: palette.overlay,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: AppBottomNavigation(
-        selectedIndex: _index,
-        onSelected: (index) {
-          _selectTab(index);
-        },
+          ],
+        ),
+        bottomNavigationBar: AppBottomNavigation(
+          selectedIndex: _index,
+          onSelected: (index) {
+            _selectTab(index);
+          },
+        ),
       ),
     );
   }
@@ -228,100 +214,81 @@ class DashboardScreen extends StatelessWidget {
     required this.onGoRegister,
     required this.onGoLenses,
     required this.onRate,
-    required this.onLogout,
   });
 
   final Future<void> Function() onGoRegister;
   final VoidCallback onGoLenses;
   final VoidCallback onRate;
-  final Future<void> Function() onLogout;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 10),
-      child: Column(
-        children: [
-          _dashboardTile('Register new lenses', () => onGoRegister()),
-          const SizedBox(height: 14),
-          _dashboardTile('My Lenses', onGoLenses),
-          const SizedBox(height: 14),
-          _dashboardTile('Rate my experience', onRate),
-          const SizedBox(height: 20),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _placeholderCard()),
-                const SizedBox(width: 8),
-                Expanded(child: _placeholderCard()),
-                const SizedBox(width: 8),
-                Expanded(child: _placeholderCard()),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(onPressed: () => onLogout(), child: const Text('Logout')),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 24, 18, 20),
+      children: [
+        _dashboardTile(
+          context,
+          title: 'Register new\nlenses',
+          onTap: () => onGoRegister(),
+        ),
+        const SizedBox(height: 14),
+        _dashboardTile(context, title: 'My Lenses', onTap: onGoLenses),
+        const SizedBox(height: 14),
+        _dashboardTile(context, title: 'Rate my\nexperience', onTap: onRate),
+      ],
     );
   }
 
-  Widget _dashboardTile(String title, VoidCallback onTap) {
+  Widget _dashboardTile(
+    BuildContext context, {
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    final palette = context.brandPalette;
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8E3EC),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.black12),
-          boxShadow: const [
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: palette.border),
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 2,
-              offset: Offset(0, 1),
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFFD4C8EE),
+              radius: 30,
+              backgroundColor: palette.accentSoft,
               child: Text(
-                title.characters.first,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                'A',
+                style: TextStyle(
+                  color: palette.primary,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const Icon(Icons.cloud, color: Colors.black26),
-            const SizedBox(width: 6),
-            const Icon(Icons.settings, color: Colors.black26),
-            const SizedBox(width: 6),
-            const Icon(Icons.square, color: Colors.black26),
+            Icon(Icons.chevron_right, color: palette.iconMuted, size: 30),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _placeholderCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8E3EC),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Center(
-        child: Icon(Icons.widgets_outlined, color: Colors.black26, size: 46),
       ),
     );
   }
@@ -342,7 +309,6 @@ class RegisterLensScreen extends StatefulWidget {
   State<RegisterLensScreen> createState() => _RegisterLensScreenState();
 }
 
-/// State for lens registration form interactions.
 class _RegisterLensScreenState extends State<RegisterLensScreen> {
   final _serial = TextEditingController();
   String? _selectedOptician;
@@ -366,81 +332,120 @@ class _RegisterLensScreenState extends State<RegisterLensScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Scaffold(
       appBar: const TopBackAppBar(title: 'Lens Registration'),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 30, 28, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextFormField(
-              controller: _serial,
-              style: const TextStyle(fontSize: 20),
-              decoration: const InputDecoration(
-                labelText: 'Number',
-                hintText: 'Serial Number',
-                floatingLabelBehavior: FloatingLabelBehavior.always,
-                filled: true,
-                fillColor: Color(0xFFE8E3EC),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black38),
-                ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+        children: [
+          Text(
+            'ITEM',
+            style: TextStyle(
+              color: palette.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _serial,
+            style: TextStyle(fontSize: 20, color: palette.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Serial Number',
+              hintStyle: TextStyle(color: palette.textSecondary),
+              filled: true,
+              fillColor: palette.surfaceMuted,
+              suffixIcon: Icon(
+                Icons.camera_alt_outlined,
+                color: palette.iconMuted,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
               ),
             ),
-            const SizedBox(height: 24),
-            SecondaryPillButton(text: 'scan QR code', onTap: _scanQrCode),
-            const SizedBox(height: 34),
-            Row(
-              children: [
-                const Icon(Icons.stars_rounded, size: 16),
-                const SizedBox(width: 8),
-                const Text('Select Optician', style: TextStyle(fontSize: 18)),
-                const Spacer(),
-                DropdownButton<String>(
-                  value: _selectedOptician,
-                  hint: const Text('Choose'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Optician A',
-                      child: Text('Optician A'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Optician B',
-                      child: Text('Optician B'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Optician C',
-                      child: Text('Optician C'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _selectedOptician = value),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Center(
-              child: SecondaryPillButton(
-                text: 'Register Lens',
-                onTap: () {
-                  widget.onRegisterLens(
-                    _serial.text.trim(),
-                    _selectedOptician ?? '',
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Lens registered successfully.'),
-                    ),
-                  );
-                  Navigator.of(context).pop();
-                },
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _scanQrCode,
+            icon: Icon(Icons.qr_code_scanner, color: palette.textPrimary),
+            label: Text(
+              'Scan QR code',
+              style: TextStyle(
+                color: palette.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ],
-        ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(58),
+              side: BorderSide(color: palette.border, width: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'STORE',
+            style: TextStyle(
+              color: palette.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedOptician,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: palette.surfaceMuted,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            hint: const Text('Select Optician'),
+            items: const [
+              DropdownMenuItem(value: 'Optician A', child: Text('Optician A')),
+              DropdownMenuItem(value: 'Optician B', child: Text('Optician B')),
+              DropdownMenuItem(value: 'Optician C', child: Text('Optician C')),
+            ],
+            onChanged: (value) => setState(() => _selectedOptician = value),
+          ),
+          const SizedBox(height: 28),
+          FilledButton.icon(
+            onPressed: () {
+              widget.onRegisterLens(
+                _serial.text.trim(),
+                _selectedOptician ?? '',
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Lens registered successfully.')),
+              );
+              Navigator.of(context).pop();
+            },
+            icon: Icon(Icons.adjust_outlined, color: palette.primary),
+            label: Text(
+              'Register Lens',
+              style: TextStyle(
+                color: palette.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: palette.accentSoft,
+              minimumSize: const Size.fromHeight(58),
+              shape: const StadiumBorder(),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: AppBottomNavigation(
-        selectedIndex: 2,
+        selectedIndex: 0,
         onSelected: widget.onTabSelected,
       ),
     );
@@ -460,67 +465,84 @@ class LensesListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       itemCount: lenses.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 14),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final lens = lenses[index];
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.black12),
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: palette.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Text(
-                  lens.name,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: palette.accentSoft,
+                    child: Icon(
+                      Icons.person_outline,
+                      color: palette.primary,
+                      size: 30,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      lens.name,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Icon(
-                  Icons.person_2_outlined,
-                  size: 48,
-                  color: Color(0xFFB8A5E2),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
+              const SizedBox(height: 12),
+              Text(
                 'Lens Info',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Lens Name: ${lens.name}',
-                style: const TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(fontSize: 15, color: palette.textSecondary),
               ),
               Text(
                 'Purchase Date: ${lens.purchaseDate}',
-                style: const TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(fontSize: 15, color: palette.textSecondary),
               ),
               Text(
                 'Optician: ${lens.optician}',
-                style: const TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(fontSize: 15, color: palette.textSecondary),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D2D30),
-                    foregroundColor: Colors.white,
-                  ),
                   onPressed: () => onOpenDetails(lens),
-                  child: const Text('Details'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: palette.primary,
+                    foregroundColor: palette.onPrimary,
+                    minimumSize: const Size.fromHeight(54),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'Details',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],
@@ -531,91 +553,405 @@ class LensesListScreen extends StatelessWidget {
   }
 }
 
-/// Digital lens passport detail screen.
-class LensPassportScreen extends StatelessWidget {
+class LensPassportScreen extends StatefulWidget {
   const LensPassportScreen({
     super.key,
     required this.lens,
-    required this.onRateLens,
     required this.onTabSelected,
   });
 
   final LensItem lens;
-  final VoidCallback onRateLens;
   final ValueChanged<int> onTabSelected;
+
+  @override
+  State<LensPassportScreen> createState() => _LensPassportScreenState();
+}
+
+enum _PassportTab { lensDetails, prescription, frameMeasurements }
+
+class _LensPassportScreenState extends State<LensPassportScreen> {
+  _PassportTab _tab = _PassportTab.lensDetails;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Digital Lens Passport')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: const Color(0xFF292A2D),
-            borderRadius: BorderRadius.circular(8),
+      appBar: const TopBackAppBar(),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+        children: [
+          Text(
+            'My Vision Details',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: context.brandPalette.textPrimary,
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  lens.name,
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Center(
-                child: Icon(
-                  Icons.person_2_outlined,
-                  size: 52,
-                  color: Color(0xFFD2C2F4),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _passportLine('Lens Type', 'Single Vision'),
-              _passportLine('Coating', 'Blue Light Filter'),
-              _passportLine('Diopter Values', '-1.50 / -1.25'),
-              _passportLine('Purchase Location', lens.optician),
-              _passportLine('Purchase Date', lens.purchaseDate),
-              const Spacer(),
-              Center(
-                child: PrimaryPillButton(
-                  text: 'Rate this Lens',
-                  onTap: onRateLens,
-                ),
-              ),
-            ],
+          const SizedBox(height: 18),
+          _PassportSegmentControl(
+            selected: _tab,
+            onChanged: (tab) => setState(() => _tab = tab),
           ),
-        ),
+          const SizedBox(height: 18),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: switch (_tab) {
+              _PassportTab.lensDetails => _PassportLensDetails(
+                key: const ValueKey('lens-details'),
+                lens: widget.lens,
+              ),
+              _PassportTab.prescription => const _PassportPrescription(
+                key: ValueKey('prescription'),
+              ),
+              _PassportTab.frameMeasurements =>
+                const _PassportFrameMeasurements(
+                  key: ValueKey('frame-measurements'),
+                ),
+            },
+          ),
+        ],
       ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 1,
-        onSelected: onTabSelected,
+        onSelected: widget.onTabSelected,
+      ),
+    );
+  }
+}
+
+class _PassportSegmentControl extends StatelessWidget {
+  const _PassportSegmentControl({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final _PassportTab selected;
+  final ValueChanged<_PassportTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: palette.segmentSelected),
+      ),
+      child: Row(
+        children: [
+          _segmentButton(
+            context,
+            tab: _PassportTab.lensDetails,
+            label: 'Lens Details',
+          ),
+          _segmentButton(
+            context,
+            tab: _PassportTab.prescription,
+            label: 'Prescription',
+          ),
+          _segmentButton(
+            context,
+            tab: _PassportTab.frameMeasurements,
+            label: 'Frame Measurements',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _passportLine(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(fontSize: 20, color: Colors.white),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(color: Colors.white70),
+  Widget _segmentButton(
+    BuildContext context, {
+    required _PassportTab tab,
+    required String label,
+  }) {
+    final palette = context.brandPalette;
+    final isSelected = selected == tab;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(tab),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? palette.segmentSelected : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? palette.onSegmentSelected
+                  : palette.textPrimary,
             ),
-            TextSpan(text: value),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PassportLensDetails extends StatelessWidget {
+  const _PassportLensDetails({super.key, required this.lens});
+
+  final LensItem lens;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _passportInfoRow(context, 'Lens Design', 'Hoyalux iD MySense'),
+        _passportInfoRow(context, 'Antireflex Coating', 'Hi-Vision MEIRYO'),
+        _passportInfoRow(context, 'Material', '1.60'),
+        _passportInfoRow(context, 'Design Variation Code', '309'),
+        _passportInfoRow(context, 'My Design Selection', '000002'),
+        const SizedBox(height: 12),
+        Text(
+          'Registered Lens: ${lens.name} • ${lens.purchaseDate} • ${lens.optician}',
+          style: TextStyle(color: palette.textSecondary, fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _passportInfoRow(BuildContext context, String label, String value) {
+    final palette = context.brandPalette;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: palette.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 14, color: palette.textPrimary),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.info_rounded, color: palette.textPrimary, size: 16),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PassportPrescription extends StatelessWidget {
+  const _PassportPrescription({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: Container(height: 1, color: palette.border)),
+            const SizedBox(width: 14),
+            Expanded(child: Container(height: 1, color: palette.border)),
           ],
         ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Right Eye',
+                style: TextStyle(color: palette.textSecondary),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                'Left Eye',
+                textAlign: TextAlign.end,
+                style: TextStyle(color: palette.textSecondary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const _PassportDualValueRow(
+          label: 'Sphere Power',
+          rightValue: '-1.03',
+          leftValue: '-2.52',
+        ),
+        const _PassportDualValueRow(
+          label: 'Cylinder Power',
+          rightValue: '-0.98',
+          leftValue: '-0.76',
+        ),
+        const _PassportDualValueRow(
+          label: 'Cylinder Axis (°)',
+          rightValue: '175',
+          leftValue: '45',
+        ),
+        const _PassportDualValueRow(
+          label: 'Addition Power',
+          rightValue: '2.01',
+          leftValue: '2.01',
+        ),
+      ],
+    );
+  }
+}
+
+class _PassportFrameMeasurements extends StatelessWidget {
+  const _PassportFrameMeasurements({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: Container(height: 1, color: palette.border)),
+            const SizedBox(width: 14),
+            Expanded(child: Container(height: 1, color: palette.border)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Right Eye',
+                style: TextStyle(color: palette.textSecondary),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                'Left Eye',
+                textAlign: TextAlign.end,
+                style: TextStyle(color: palette.textSecondary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const _PassportDualValueRow(
+          label: 'Pupil Distance (mm)',
+          rightValue: '32.0',
+          leftValue: '32.0',
+        ),
+        const _PassportDualValueRow(
+          label: 'Eyepoint Height (mm)',
+          rightValue: '25.0',
+          leftValue: '25.0',
+        ),
+        const _PassportDualValueRow(
+          label: 'Inset (mm)',
+          rightValue: '2.25',
+          leftValue: '2.29',
+        ),
+        const _PassportDualValueRow(
+          label: 'Cornea Vertex Distance (mm)',
+          rightValue: '16.50',
+          leftValue: '16.50',
+        ),
+        const _PassportDualValueRow(
+          label: 'Axial Length (mm)',
+          rightValue: '23',
+          leftValue: '23',
+        ),
+        const _PassportDualValueRow(
+          label: 'Pantoscopic Angle (°)',
+          rightValue: '5.15°',
+          leftValue: '5.12',
+        ),
+        const _PassportDualValueRow(
+          label: 'Frame or Lens Measurements',
+          rightValue: 'F',
+          leftValue: 'F',
+        ),
+        const _PassportDualValueRow(
+          label: 'Frame Face Angle (°)',
+          rightValue: '7.1',
+          leftValue: '7.1',
+        ),
+      ],
+    );
+  }
+}
+
+class _PassportDualValueRow extends StatelessWidget {
+  const _PassportDualValueRow({
+    required this.label,
+    required this.rightValue,
+    required this.leftValue,
+  });
+
+  final String label;
+  final String rightValue;
+  final String leftValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              rightValue,
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.2,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.info_rounded, color: palette.textPrimary, size: 16),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Text(
+              leftValue,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -679,57 +1015,95 @@ class _RateLensScreenState extends State<RateLensScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Scaffold(
       appBar: const TopBackAppBar(),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 34, 24, 22),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
           children: [
-            const SizedBox(height: 30),
             Center(
               child: Text(
                 widget.title,
-                style: const TextStyle(
-                  fontSize: 38,
-                  fontWeight: FontWeight.w500,
+                style: TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary,
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            const Center(
-              child: Icon(
-                Icons.image_outlined,
-                size: 120,
-                color: Colors.black87,
+            const SizedBox(height: 20),
+            Center(
+              child: Container(
+                width: 126,
+                height: 126,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: palette.border, width: 2),
+                ),
+                child: Icon(
+                  Icons.image_outlined,
+                  size: 58,
+                  color: palette.textSecondary,
+                ),
               ),
             ),
-            const SizedBox(height: 58),
+            const SizedBox(height: 34),
             Center(
-              child: RatingStarsRow(
+              child: _RatingStars(
                 rating: _rating,
                 onSelected: (value) => setState(() => _rating = value),
               ),
             ),
-            const SizedBox(height: 56),
-            const Text('Comment Text Area', style: TextStyle(fontSize: 36)),
+            const SizedBox(height: 34),
+            Text(
+              'Comment Text Area',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
+              ),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: _commentController,
-              maxLines: 3,
-              style: const TextStyle(fontSize: 34),
+              minLines: 4,
+              maxLines: 4,
+              style: TextStyle(fontSize: 17, color: palette.textPrimary),
               decoration: InputDecoration(
+                hintText: 'Lorem',
+                hintStyle: TextStyle(color: palette.textSecondary),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.5),
+                fillColor: palette.surfaceMuted,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
-            const SizedBox(height: 80),
-            Center(
-              child: SecondaryPillButton(
-                text: widget.submitLabel,
-                onTap: _submit,
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _submit,
+                icon: const Icon(Icons.send_outlined),
+                label: Text(
+                  widget.submitLabel,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.primary,
+                  foregroundColor: palette.onPrimary,
+                  minimumSize: const Size.fromHeight(56),
+                  shape: const StadiumBorder(),
+                ),
               ),
             ),
           ],
@@ -791,52 +1165,93 @@ class _EditRatingScreenState extends State<EditRatingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Scaffold(
       appBar: const TopBackAppBar(),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 34, 24, 22),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
           children: [
-            const SizedBox(height: 30),
-            const Center(
+            Center(
               child: Text(
                 'Your Lens / Your Optician',
-                style: TextStyle(fontSize: 38, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary,
+                ),
               ),
             ),
-            const SizedBox(height: 24),
-            const Center(
-              child: Icon(
-                Icons.image_outlined,
-                size: 120,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 58),
+            const SizedBox(height: 20),
             Center(
-              child: RatingStarsRow(
+              child: Container(
+                width: 126,
+                height: 126,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: palette.border, width: 2),
+                ),
+                child: Icon(
+                  Icons.image_outlined,
+                  size: 58,
+                  color: palette.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 34),
+            Center(
+              child: _RatingStars(
                 rating: _rating,
                 onSelected: (value) => setState(() => _rating = value),
               ),
             ),
-            const SizedBox(height: 56),
-            const Text('Comment Text Area', style: TextStyle(fontSize: 36)),
+            const SizedBox(height: 34),
+            Text(
+              'Comment Text Area',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
+              ),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: _commentController,
-              maxLines: 3,
-              style: const TextStyle(fontSize: 34),
+              minLines: 4,
+              maxLines: 4,
+              style: TextStyle(fontSize: 17, color: palette.textPrimary),
               decoration: InputDecoration(
+                hintText: 'Lorem',
+                hintStyle: TextStyle(color: palette.textSecondary),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.5),
+                fillColor: palette.surfaceMuted,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
-            const SizedBox(height: 80),
-            Center(
-              child: SecondaryPillButton(text: 'Update', onTap: _update),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _update,
+                icon: const Icon(Icons.send_outlined),
+                label: const Text(
+                  'Update',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.primary,
+                  foregroundColor: palette.onPrimary,
+                  minimumSize: const Size.fromHeight(56),
+                  shape: const StadiumBorder(),
+                ),
+              ),
             ),
           ],
         ),
@@ -845,6 +1260,47 @@ class _EditRatingScreenState extends State<EditRatingScreen> {
         selectedIndex: 1,
         onSelected: widget.onTabSelected,
       ),
+    );
+  }
+}
+
+class _RatingStars extends StatelessWidget {
+  const _RatingStars({required this.rating, required this.onSelected});
+
+  final int rating;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(5, (index) {
+        final number = index + 1;
+        final isSelected = number <= rating;
+        final borderColor = isSelected ? palette.primary : palette.border;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: () => onSelected(number),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: isSelected ? palette.secondary : Colors.transparent,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: borderColor, width: 2),
+              ),
+              child: Icon(
+                isSelected ? Icons.star : Icons.star_border,
+                color: borderColor,
+                size: 30,
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }
@@ -858,6 +1314,7 @@ class ProfileOverviewScreen extends StatelessWidget {
     required this.selectedOptician,
     required this.onNotificationSettings,
     required this.onPrivacy,
+    required this.onLogout,
   });
 
   final String name;
@@ -865,9 +1322,11 @@ class ProfileOverviewScreen extends StatelessWidget {
   final String selectedOptician;
   final Future<void> Function() onNotificationSettings;
   final Future<void> Function() onPrivacy;
+  final Future<void> Function() onLogout;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       child: Column(
@@ -923,6 +1382,51 @@ class ProfileOverviewScreen extends StatelessWidget {
             child: SecondaryPillButton(
               text: 'Privacy & Data',
               onTap: () => onPrivacy(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Confirm Logout'),
+                      content: const Text(
+                        'Do you really want to log out of your account?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Logout'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (confirmed == true) {
+                  await onLogout();
+                }
+              },
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text(
+                'Logout',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                backgroundColor: colors.error,
+                foregroundColor: colors.onError,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
             ),
           ),
         ],
