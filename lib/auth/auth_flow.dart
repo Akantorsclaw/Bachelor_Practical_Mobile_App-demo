@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app/session_controller.dart';
-import '../shared/app_widgets.dart';
+import '../branding/brand.dart';
+import '../branding/brand_context.dart';
 import '../shared/validators.dart';
 
 /// Container for all unauthenticated screens.
@@ -27,63 +30,58 @@ class _AuthFlowState extends State<AuthFlow> {
     setState(() => _isTransitioning = false);
   }
 
-  /// Builds auth subview based on [SessionController.authView].
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Stack(
-                children: [
-                  SingleChildScrollView(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: switch (_controller.authView) {
-                        AuthView.login => LoginView(
-                          key: const ValueKey('login'),
-                          onLogin: _handleLogin,
-                          onForgot: () => _transitionTo(AuthView.reset),
-                          onCreate: () => _transitionTo(AuthView.register),
-                        ),
-                        AuthView.register => RegisterView(
-                          key: const ValueKey('register'),
-                          onRegister: _handleBeginRegistration,
-                          onBack: () => _transitionTo(AuthView.login),
-                        ),
-                        AuthView.gdprConsent => GdprConsentView(
-                          key: const ValueKey('gdpr'),
-                          onAccept: _handleGdprAccept,
-                          onBack: () => _transitionTo(AuthView.register),
-                        ),
-                        AuthView.reset => ResetView(
-                          key: const ValueKey('reset'),
-                          onSend: _handleResetPassword,
-                          onBack: () => _transitionTo(AuthView.login),
-                        ),
-                      },
-                    ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: _responsiveHorizontalPadding(context),
+            vertical: _responsiveVerticalPadding(context),
+          ),
+          child: Stack(
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: switch (_controller.authView) {
+                  AuthView.login => LoginView(
+                    key: const ValueKey('login'),
+                    onLogin: _handleLogin,
+                    onForgot: () => _transitionTo(AuthView.reset),
+                    onCreate: () => _transitionTo(AuthView.register),
                   ),
-                  if (_controller.busy || _isTransitioning)
-                    const Positioned.fill(
-                      child: ColoredBox(
-                        color: Color(0x88000000),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    ),
-                ],
+                  AuthView.register => RegisterView(
+                    key: const ValueKey('register'),
+                    onRegister: _handleBeginRegistration,
+                    onBack: () => _transitionTo(AuthView.login),
+                  ),
+                  AuthView.gdprConsent => GdprConsentView(
+                    key: const ValueKey('gdpr'),
+                    onAccept: _handleGdprAccept,
+                    onBack: () => _transitionTo(AuthView.register),
+                  ),
+                  AuthView.reset => ResetView(
+                    key: const ValueKey('reset'),
+                    onSend: _handleResetPassword,
+                    onBack: () => _transitionTo(AuthView.login),
+                  ),
+                },
               ),
-            ),
+              if (_controller.busy || _isTransitioning)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: palette.overlay,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// Attempts login and shows any resulting user-facing error.
   Future<void> _handleLogin(String email, String password) async {
     final error = await _controller.signIn(email: email, password: password);
     if (!mounted) return;
@@ -92,7 +90,6 @@ class _AuthFlowState extends State<AuthFlow> {
     }
   }
 
-  /// Starts registration flow and advances to GDPR screen on success.
   Future<void> _handleBeginRegistration(
     String name,
     String email,
@@ -109,7 +106,6 @@ class _AuthFlowState extends State<AuthFlow> {
     }
   }
 
-  /// Finalizes registration after GDPR consent.
   Future<void> _handleGdprAccept() async {
     final error = await _controller.completeRegistrationWithConsent();
     if (!mounted) return;
@@ -120,7 +116,6 @@ class _AuthFlowState extends State<AuthFlow> {
     _showSnack('Account created. Please login.');
   }
 
-  /// Sends reset-password email for the entered email address.
   Future<void> _handleResetPassword(String email) async {
     final error = await _controller.sendPasswordReset(email);
     if (!mounted) return;
@@ -131,13 +126,11 @@ class _AuthFlowState extends State<AuthFlow> {
     _showSnack('Password reset link sent to ${email.trim()}');
   }
 
-  /// Shared snackbar helper for auth flows.
   void _showSnack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 }
 
-/// Login screen (email + password).
 class LoginView extends StatefulWidget {
   const LoginView({
     super.key,
@@ -154,7 +147,6 @@ class LoginView extends StatefulWidget {
   State<LoginView> createState() => _LoginViewState();
 }
 
-/// State for login form validation and submit behavior.
 class _LoginViewState extends State<LoginView> {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
@@ -169,43 +161,35 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 42),
-          const Text(
-            'LOGO',
-            style: TextStyle(
-              fontSize: 72,
-              height: 1.0,
-              fontWeight: FontWeight.w800,
+    return _AuthViewport(
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: _vh(context, 0.08, min: 28, max: 64)),
+            Center(
+              child: _BrandWordmark(
+                height: _vh(context, 0.085, min: 56, max: 92),
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Brand',
-            style: TextStyle(fontSize: 46, color: Colors.black45),
-          ),
-          const SizedBox(height: 88),
-          FormInput(
-            label: 'E-Mail',
-            hint: 'Input',
-            controller: _email,
-            validator: validateEmail,
-          ),
-          const SizedBox(height: 14),
-          FormInput(
-            label: 'Password',
-            hint: '******',
-            controller: _password,
-            obscure: true,
-            validator: validatePassword,
-          ),
-          const SizedBox(height: 28),
-          Center(
-            child: PrimaryPillButton(
+            SizedBox(height: _vh(context, 0.09, min: 36, max: 88)),
+            _AuthField(
+              label: 'MAIL',
+              hint: 'Input',
+              controller: _email,
+              validator: validateEmail,
+            ),
+            SizedBox(height: _vh(context, 0.022, min: 12, max: 24)),
+            _AuthField(
+              label: 'PASSWORD',
+              hint: '••••••••',
+              controller: _password,
+              obscure: true,
+              validator: validatePassword,
+            ),
+            SizedBox(height: _vh(context, 0.08, min: 28, max: 72)),
+            _AuthPrimaryButton(
               text: 'Login',
               onTap: () {
                 if (_form.currentState!.validate()) {
@@ -213,41 +197,18 @@ class _LoginViewState extends State<LoginView> {
                 }
               },
             ),
-          ),
-          const SizedBox(height: 30),
-          Center(
-            child: TextButton(
-              onPressed: widget.onForgot,
-              child: const Text(
-                'Forgot password?',
-                style: TextStyle(
-                  color: Colors.black87,
-                  decoration: TextDecoration.underline,
-                  fontSize: 30,
-                ),
-              ),
-            ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: widget.onCreate,
-              child: const Text(
-                'Create Account',
-                style: TextStyle(
-                  color: Colors.black87,
-                  decoration: TextDecoration.underline,
-                  fontSize: 30,
-                ),
-              ),
-            ),
-          ),
-        ],
+            SizedBox(height: _vh(context, 0.032, min: 16, max: 30)),
+            _AuthTextLink(text: 'Forgot password?', onTap: widget.onForgot),
+            SizedBox(height: _vh(context, 0.004, min: 2, max: 6)),
+            _AuthTextLink(text: 'Create Account', onTap: widget.onCreate),
+            SizedBox(height: _vh(context, 0.04, min: 18, max: 34)),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Registration screen (name + email + password).
 class RegisterView extends StatefulWidget {
   const RegisterView({
     super.key,
@@ -263,12 +224,12 @@ class RegisterView extends StatefulWidget {
   State<RegisterView> createState() => _RegisterViewState();
 }
 
-/// State for registration form validation and transition handling.
 class _RegisterViewState extends State<RegisterView> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  bool _gdprAccepted = false;
 
   @override
   void dispose() {
@@ -280,59 +241,100 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 82),
-          FormInput(
-            label: 'Name',
-            hint: 'Name',
-            controller: _name,
-            validator: (value) {
-              if ((value ?? '').trim().isEmpty) return 'Enter your name';
-              return null;
-            },
-          ),
-          const SizedBox(height: 14),
-          FormInput(
-            label: 'E-Mail',
-            hint: 'Input',
-            controller: _email,
-            validator: validateEmail,
-          ),
-          const SizedBox(height: 14),
-          FormInput(
-            label: 'Password',
-            hint: '******',
-            controller: _password,
-            obscure: true,
-            validator: validatePassword,
-          ),
-          const SizedBox(height: 120),
-          Center(
-            child: SecondaryPillButton(
-              text: 'Continue',
+    final palette = context.brandPalette;
+    return _AuthViewport(
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AuthTitle(title: 'Registration'),
+            SizedBox(height: _vh(context, 0.036, min: 16, max: 34)),
+            _AuthField(
+              label: 'NAME',
+              hint: 'Input',
+              controller: _name,
+              validator: (value) {
+                if ((value ?? '').trim().isEmpty) return 'Enter your name';
+                return null;
+              },
+            ),
+            SizedBox(height: _vh(context, 0.018, min: 10, max: 18)),
+            _AuthField(
+              label: 'E-MAIL',
+              hint: 'Input',
+              controller: _email,
+              validator: validateEmail,
+            ),
+            SizedBox(height: _vh(context, 0.018, min: 10, max: 18)),
+            _AuthField(
+              label: 'PASSWORD',
+              hint: '••••••••',
+              controller: _password,
+              obscure: true,
+              validator: validatePassword,
+            ),
+            SizedBox(height: _vh(context, 0.02, min: 10, max: 20)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: _gdprAccepted,
+                  activeColor: palette.primary,
+                  onChanged: (value) {
+                    setState(() => _gdprAccepted = value ?? false);
+                  },
+                ),
+                SizedBox(width: _vw(context, 0.02, min: 6, max: 10)),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: _vh(context, 0.012, min: 8, max: 12),
+                    ),
+                    child: Text(
+                      'I agree to the processing of my data (GDPR)',
+                      style: TextStyle(
+                        color: palette.textPrimary,
+                        fontSize: _responsiveFont(
+                          context,
+                          16,
+                          min: 15,
+                          max: 18,
+                        ),
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: _vh(context, 0.04, min: 18, max: 36)),
+            _AuthPrimaryButton(
+              text: 'Create account',
               onTap: () {
                 if (!_form.currentState!.validate()) return;
+                if (!_gdprAccepted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please accept GDPR consent to continue.'),
+                    ),
+                  );
+                  return;
+                }
                 widget.onRegister(_name.text, _email.text, _password.text);
               },
             ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: widget.onBack,
-              child: const Text('Back to login'),
-            ),
-          ),
-        ],
+            SizedBox(height: _vh(context, 0.014, min: 8, max: 14)),
+            _AuthTextLink(text: 'Back to Login', onTap: widget.onBack),
+            SizedBox(height: _vh(context, 0.03, min: 14, max: 24)),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// GDPR consent screen shown between register and login.
 class GdprConsentView extends StatelessWidget {
   const GdprConsentView({
     super.key,
@@ -345,45 +347,49 @@ class GdprConsentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 72),
-        const Text(
-          'GDPR Consent',
-          style: TextStyle(fontSize: 44, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 18),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEEE8F2),
-            borderRadius: BorderRadius.circular(10),
+    final palette = context.brandPalette;
+    return _AuthViewport(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AuthTitle(title: 'Registration'),
+          SizedBox(height: _vh(context, 0.03, min: 14, max: 28)),
+          Text(
+            'Data Processing Consent (GDPR)',
+            style: TextStyle(
+              color: palette.textPrimary,
+              fontSize: _responsiveFont(context, 26, min: 22, max: 30),
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          child: const Text(
-            'By continuing, you agree that your data is processed to provide app functionality.\n\n'
-            'Stored data includes registered lenses, ratings, and selected optician preferences.',
-            style: TextStyle(fontSize: 15, height: 1.4),
+          SizedBox(height: _vh(context, 0.018, min: 10, max: 18)),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(_vw(context, 0.045, min: 14, max: 22)),
+            decoration: BoxDecoration(
+              color: palette.surfaceMuted,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              'By continuing, you agree that your data is processed to provide app functionality.\n\n'
+              'Stored data includes registered lenses, ratings, and selected optician preferences.',
+              style: TextStyle(
+                fontSize: _responsiveFont(context, 15, min: 14, max: 17),
+                height: 1.4,
+                color: palette.textSecondary,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 30),
-        Center(
-          child: PrimaryPillButton(text: 'I agree', onTap: onAccept),
-        ),
-        const SizedBox(height: 12),
-        Center(
-          child: TextButton(
-            onPressed: onBack,
-            child: const Text('Back to registration'),
-          ),
-        ),
-      ],
+          SizedBox(height: _vh(context, 0.05, min: 20, max: 46)),
+          _AuthPrimaryButton(text: 'Create account', onTap: onAccept),
+          SizedBox(height: _vh(context, 0.014, min: 8, max: 14)),
+          _AuthTextLink(text: 'Back to Login', onTap: onBack),
+        ],
+      ),
     );
   }
 }
 
-/// Password reset screen.
 class ResetView extends StatefulWidget {
   const ResetView({super.key, required this.onSend, required this.onBack});
 
@@ -394,7 +400,6 @@ class ResetView extends StatefulWidget {
   State<ResetView> createState() => _ResetViewState();
 }
 
-/// State class for the password reset screen.
 class _ResetViewState extends State<ResetView> {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
@@ -407,60 +412,352 @@ class _ResetViewState extends State<ResetView> {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _form,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 140),
-          FormInput(
-            label: 'E-Mail',
-            hint: 'Input',
-            controller: _email,
-            validator: validateEmail,
-          ),
-          const SizedBox(height: 42),
-          Center(
-            child: SecondaryPillButton(
+    final palette = context.brandPalette;
+    return _AuthViewport(
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AuthTitle(title: 'Password Reset'),
+            SizedBox(height: _vh(context, 0.04, min: 18, max: 34)),
+            _AuthField(
+              label: 'E-MAIL',
+              hint: 'Input',
+              controller: _email,
+              validator: validateEmail,
+            ),
+            SizedBox(height: _vh(context, 0.035, min: 18, max: 34)),
+            _AuthPrimaryButton(
               text: 'Send reset link',
+              icon: Icons.access_time_outlined,
               onTap: () {
                 if (_form.currentState!.validate()) {
                   widget.onSend(_email.text);
                 }
               },
             ),
-          ),
-          const SizedBox(height: 120),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEEE8F2),
-              borderRadius: BorderRadius.circular(4),
+            SizedBox(height: _vh(context, 0.04, min: 18, max: 36)),
+            Divider(color: palette.border),
+            SizedBox(height: _vh(context, 0.03, min: 14, max: 26)),
+            Text(
+              'Info Text',
+              style: TextStyle(
+                fontSize: _responsiveFont(context, 36, min: 30, max: 40),
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
+              ),
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Info Text',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Supporting line text lorem ipsum dolor sit amet, consectetur.',
-                  style: TextStyle(fontSize: 14, height: 1.35),
-                ),
-              ],
+            SizedBox(height: _vh(context, 0.01, min: 4, max: 10)),
+            Text(
+              'Supporting line text lorem ipsum dolor sit amet, consectetur.',
+              style: TextStyle(
+                fontSize: _responsiveFont(context, 16, min: 15, max: 18),
+                height: 1.35,
+                color: palette.textSecondary,
+              ),
             ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: widget.onBack,
-              child: const Text('Back to login'),
-            ),
-          ),
-        ],
+            SizedBox(height: _vh(context, 0.03, min: 14, max: 24)),
+            _AuthTextLink(text: 'Back to Login', onTap: widget.onBack),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _AuthViewport extends StatelessWidget {
+  const _AuthViewport({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AuthTitle extends StatelessWidget {
+  const _AuthTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Text(
+      title,
+      textAlign: TextAlign.left,
+      style: TextStyle(
+        fontSize: _responsiveFont(context, 52, min: 40, max: 56),
+        fontWeight: FontWeight.w700,
+        color: palette.textPrimary,
+      ),
+    );
+  }
+}
+
+enum _BrandLogoAsset { svg, png, none }
+
+class _BrandWordmark extends StatefulWidget {
+  const _BrandWordmark({required this.height});
+
+  final double height;
+
+  @override
+  State<_BrandWordmark> createState() => _BrandWordmarkState();
+}
+
+class _BrandWordmarkState extends State<_BrandWordmark> {
+  late final Future<_BrandLogoAsset> _assetChoice = _resolveAsset();
+
+  Future<_BrandLogoAsset> _resolveAsset() async {
+    final svgPath = AppBrand.current.assets.authLogoSvg;
+    final pngPath = AppBrand.current.assets.authLogoPng;
+
+    try {
+      await rootBundle.load(svgPath);
+      return _BrandLogoAsset.svg;
+    } catch (_) {}
+
+    try {
+      await rootBundle.load(pngPath);
+      return _BrandLogoAsset.png;
+    } catch (_) {}
+
+    return _BrandLogoAsset.none;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<_BrandLogoAsset>(
+      future: _assetChoice,
+      builder: (context, snapshot) {
+        final choice = snapshot.data;
+        if (choice == _BrandLogoAsset.svg) {
+          return SvgPicture.asset(
+            AppBrand.current.assets.authLogoSvg,
+            height: widget.height,
+            fit: BoxFit.contain,
+          );
+        }
+        if (choice == _BrandLogoAsset.png) {
+          return Image.asset(
+            AppBrand.current.assets.authLogoPng,
+            height: widget.height,
+            fit: BoxFit.contain,
+          );
+        }
+        return Text(
+          AppBrand.current.appName,
+          style: TextStyle(
+            fontSize: _responsiveFont(context, 28, min: 22, max: 34),
+            fontWeight: FontWeight.w800,
+            color: context.brandPalette.primary,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AuthField extends StatelessWidget {
+  const _AuthField({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    this.validator,
+    this.obscure = false,
+  });
+
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final String? Function(String?)? validator;
+  final bool obscure;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: _responsiveFont(context, 16, min: 15, max: 18),
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            color: palette.textSecondary,
+          ),
+        ),
+        SizedBox(height: _vh(context, 0.012, min: 8, max: 12)),
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          obscureText: obscure,
+          style: TextStyle(
+            fontSize: _responsiveFont(context, 20, min: 19, max: 22),
+            color: palette.textPrimary,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+              fontSize: _responsiveFont(context, 20, min: 19, max: 22),
+              color: palette.textSecondary,
+            ),
+            filled: true,
+            fillColor: palette.surfaceMuted,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(
+                _vw(context, 0.04, min: 16, max: 24),
+              ),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(
+                _vw(context, 0.04, min: 16, max: 24),
+              ),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(
+                _vw(context, 0.04, min: 16, max: 24),
+              ),
+              borderSide: BorderSide(color: palette.primary, width: 1.5),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: _vw(context, 0.05, min: 18, max: 24),
+              vertical: _vh(context, 0.022, min: 16, max: 22),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AuthPrimaryButton extends StatelessWidget {
+  const _AuthPrimaryButton({
+    required this.text,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String text;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    final label = Text(
+      text,
+      style: TextStyle(
+        fontSize: _responsiveFont(context, 22, min: 20, max: 24),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    final style = FilledButton.styleFrom(
+      backgroundColor: palette.primary,
+      foregroundColor: palette.onPrimary,
+      shape: const StadiumBorder(),
+      padding: EdgeInsets.symmetric(
+        horizontal: _vw(context, 0.04, min: 14, max: 24),
+        vertical: _vh(context, 0.022, min: 16, max: 22),
+      ),
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      child: icon == null
+          ? FilledButton(onPressed: onTap, style: style, child: label)
+          : FilledButton.icon(
+              onPressed: onTap,
+              style: style,
+              icon: Icon(
+                icon,
+                size: _responsiveFont(context, 22, min: 20, max: 24),
+              ),
+              label: label,
+            ),
+    );
+  }
+}
+
+class _AuthTextLink extends StatelessWidget {
+  const _AuthTextLink({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Center(
+      child: TextButton(
+        onPressed: onTap,
+        child: Text(
+          text,
+          style: TextStyle(
+            color: palette.textPrimary,
+            decoration: TextDecoration.underline,
+            decorationColor: palette.textPrimary,
+            fontSize: _responsiveFont(context, 17, min: 16, max: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+double _responsiveHorizontalPadding(BuildContext context) {
+  final width = MediaQuery.sizeOf(context).width;
+  return (width * 0.08).clamp(20, 40).toDouble();
+}
+
+double _responsiveVerticalPadding(BuildContext context) {
+  final height = MediaQuery.sizeOf(context).height;
+  return (height * 0.02).clamp(10, 20).toDouble();
+}
+
+double _vh(
+  BuildContext context,
+  double factor, {
+  required double min,
+  required double max,
+}) {
+  final height = MediaQuery.sizeOf(context).height;
+  return (height * factor).clamp(min, max).toDouble();
+}
+
+double _vw(
+  BuildContext context,
+  double factor, {
+  required double min,
+  required double max,
+}) {
+  final width = MediaQuery.sizeOf(context).width;
+  return (width * factor).clamp(min, max).toDouble();
+}
+
+double _responsiveFont(
+  BuildContext context,
+  double base, {
+  required double min,
+  required double max,
+}) {
+  final width = MediaQuery.sizeOf(context).width;
+  final scaled = base * (width / 390);
+  return scaled.clamp(min, max).toDouble();
 }

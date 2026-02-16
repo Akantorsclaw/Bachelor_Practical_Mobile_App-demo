@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../branding/brand_context.dart';
+
 /// Shared styled text input used across auth and core screens.
 class FormInput extends StatelessWidget {
   const FormInput({
@@ -19,6 +21,7 @@ class FormInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return TextFormField(
       controller: controller,
       obscureText: obscure,
@@ -29,15 +32,15 @@ class FormInput extends StatelessWidget {
         hintText: hint,
         floatingLabelBehavior: FloatingLabelBehavior.always,
         filled: true,
-        fillColor: const Color(0xFFE8E3EC),
-        labelStyle: const TextStyle(fontSize: 14, color: Colors.black54),
-        hintStyle: const TextStyle(fontSize: 24, color: Colors.black87),
+        fillColor: palette.secondary,
+        labelStyle: TextStyle(fontSize: 14, color: palette.textSecondary),
+        hintStyle: TextStyle(fontSize: 24, color: palette.textPrimary),
         suffixIcon: IconButton(
           onPressed: controller.clear,
-          icon: const Icon(Icons.cancel_outlined, color: Colors.black54),
+          icon: Icon(Icons.cancel_outlined, color: palette.textSecondary),
         ),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.black38),
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: palette.border),
         ),
       ),
     );
@@ -53,6 +56,7 @@ class PrimaryPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return FilledButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.stars_rounded, size: 16),
@@ -61,8 +65,8 @@ class PrimaryPillButton extends StatelessWidget {
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
       ),
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF6B57B6),
-        foregroundColor: Colors.white,
+        backgroundColor: palette.primary,
+        foregroundColor: palette.onPrimary,
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
       ),
@@ -83,6 +87,7 @@ class SecondaryPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return FilledButton.icon(
       onPressed: onTap,
       icon: const Icon(Icons.stars_rounded, size: 16),
@@ -91,8 +96,8 @@ class SecondaryPillButton extends StatelessWidget {
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFFE9E4EF),
-        foregroundColor: const Color(0xFF6B57B6),
+        backgroundColor: palette.secondary,
+        foregroundColor: palette.primary,
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       ),
@@ -113,11 +118,12 @@ class AppBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return NavigationBar(
       selectedIndex: selectedIndex,
       onDestinationSelected: onSelected,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      backgroundColor: const Color(0xFFEDE8F1),
+      backgroundColor: palette.surfaceMuted,
       destinations: const [
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
@@ -154,6 +160,7 @@ class RatingStarsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (index) {
@@ -168,16 +175,14 @@ class RatingStarsRow extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: selected ? selectedFill : Colors.white,
+                color: selected ? selectedFill : palette.surface,
                 borderRadius: BorderRadius.circular(19),
-                border: Border.all(color: const Color(0xFFC6C0CF)),
+                border: Border.all(color: palette.border),
               ),
               child: Icon(
                 Icons.stars_rounded,
                 size: 20,
-                color: selected
-                    ? const Color(0xFF4E3B8E)
-                    : const Color(0xFF5C596B),
+                color: selected ? palette.primary : palette.textSecondary,
               ),
             ),
           ),

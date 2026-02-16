@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "436358817705",
+    "project_id": "ba-testing-grounds",
+    "storage_bucket": "ba-testing-grounds.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:436358817705:android:e86e10ff6746abaf93c6b8",
+        "android_client_info": {
+          "package_name": "com.example.sandbox_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhxvoGWR5p4pau16laKNkYeWgTvs-05jU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

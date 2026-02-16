@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../app/session_controller.dart';
+import '../branding/brand_context.dart';
 import '../shared/app_widgets.dart';
 
 /// Main authenticated shell with bottom-tab navigation.
@@ -162,24 +163,22 @@ class _LensCoreShellState extends State<LensCoreShell> {
   }
 
   /// Runs consent withdrawal process through session controller.
-  Future<void> _handleWithdrawConsent() async {
+  Future<String?> _handleWithdrawConsent() async {
     final error = await widget.controller.withdrawConsentAndLogout();
-    if (!mounted) return;
-    if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Consent withdrawn. Please re-register to use the app.'),
-      ),
-    );
+    if (!mounted) return error;
+    if (error != null) return error;
+
+    // Ensure nested profile routes are removed so auth flow is visible.
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).popUntil((route) => route.isFirst);
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     final pages = [
       DashboardScreen(
         onGoRegister: _openRegisterLens,
@@ -204,9 +203,9 @@ class _LensCoreShellState extends State<LensCoreShell> {
         children: [
           SafeArea(child: pages[_index]),
           if (_isTransitioning || widget.controller.busy)
-            const Positioned.fill(
+            Positioned.fill(
               child: ColoredBox(
-                color: Color(0x88000000),
+                color: palette.overlay,
                 child: Center(child: CircularProgressIndicator()),
               ),
             ),
@@ -998,7 +997,7 @@ class PrivacyDataProtectionScreen extends StatefulWidget {
   });
 
   final ValueChanged<int> onTabSelected;
-  final Future<void> Function() onWithdrawConsent;
+  final Future<String?> Function() onWithdrawConsent;
 
   @override
   State<PrivacyDataProtectionScreen> createState() =>
@@ -1038,7 +1037,33 @@ class _PrivacyDataProtectionScreenState
     if (confirmed != true) return;
 
     setState(() => _consentGranted = false);
-    await widget.onWithdrawConsent();
+
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => _WithdrawalLoadingDialog(
+        overlay: context.brandPalette.overlay,
+        text: context.brandPalette.onPrimary,
+      ),
+    );
+
+    final error = await widget.onWithdrawConsent();
+    if (!mounted) return;
+
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (rootNavigator.canPop()) {
+      rootNavigator.pop();
+    }
+
+    if (error != null) {
+      setState(() => _consentGranted = true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   @override
@@ -1111,6 +1136,37 @@ class _PrivacyDataProtectionScreenState
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 2,
         onSelected: widget.onTabSelected,
+      ),
+    );
+  }
+}
+
+class _WithdrawalLoadingDialog extends StatelessWidget {
+  const _WithdrawalLoadingDialog({required this.overlay, required this.text});
+
+  final Color overlay;
+  final Color text;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: ColoredBox(
+        color: overlay,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Withdrawing consent and signing you out...',
+                style: TextStyle(color: text),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
