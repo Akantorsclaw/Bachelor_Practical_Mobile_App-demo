@@ -11,6 +11,15 @@ This file tracks stable restore points for this project.
 
 ## Checkpoint List
 
+### 004 - Branding v0.2
+- Tag: `checkpoint/004-branding-v0.2`
+- Contains:
+  - Dashboard redesign with dynamic user greeting and overview stats
+  - Dynamic current-lens, quick-action, and upcoming check-up cards
+  - Updated profile/notification/privacy branding refinements
+  - Removal of legacy dashboard header label
+  - iOS bundle/Firebase alignment updates and README/MoSCoW docs updates
+
 ### 002 - Branding + Passport + Profile Edit + UX Fixes
 - Tag: `checkpoint/002-branding-passport-profile-ux`
 - Contains:
