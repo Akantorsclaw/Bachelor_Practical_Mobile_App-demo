@@ -10,10 +10,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB9H2OaUNGLUlpDXEJujlzvJoHrQmY9lvw',
-    appId: '1:436358817705:ios:870ba2ccf773069d93c6b8',
+    appId: '1:436358817705:ios:87ab98ef75b94ed993c6b8',
     messagingSenderId: '436358817705',
     projectId: 'ba-testing-grounds',
     storageBucket: 'ba-testing-grounds.firebasestorage.app',
-    iosBundleId: 'com.example.sandboxFlutter',
+    iosBundleId: 'com.dominikbien.mylensapp.bachelorpractical',
   );
 }

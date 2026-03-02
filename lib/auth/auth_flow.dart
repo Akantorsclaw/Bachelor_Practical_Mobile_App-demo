@@ -224,7 +224,6 @@ class _RegisterViewState extends State<RegisterView> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  bool _gdprAccepted = false;
 
   @override
   void dispose() {
@@ -236,7 +235,6 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.brandPalette;
     return _AuthViewport(
       child: Form(
         key: _form,
@@ -269,54 +267,11 @@ class _RegisterViewState extends State<RegisterView> {
               obscure: true,
               validator: validatePassword,
             ),
-            SizedBox(height: _vh(context, 0.02, min: 10, max: 20)),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Checkbox(
-                  value: _gdprAccepted,
-                  activeColor: palette.primary,
-                  onChanged: (value) {
-                    setState(() => _gdprAccepted = value ?? false);
-                  },
-                ),
-                SizedBox(width: _vw(context, 0.02, min: 6, max: 10)),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: _vh(context, 0.012, min: 8, max: 12),
-                    ),
-                    child: Text(
-                      'I agree to the processing of my data (GDPR)',
-                      style: TextStyle(
-                        color: palette.textPrimary,
-                        fontSize: _responsiveFont(
-                          context,
-                          16,
-                          min: 15,
-                          max: 18,
-                        ),
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
             SizedBox(height: _vh(context, 0.04, min: 18, max: 36)),
             _AuthPrimaryButton(
               text: 'Create account',
               onTap: () {
                 if (!_form.currentState!.validate()) return;
-                if (!_gdprAccepted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please accept GDPR consent to continue.'),
-                    ),
-                  );
-                  return;
-                }
                 widget.onRegister(_name.text, _email.text, _password.text);
               },
             ),
@@ -438,7 +393,7 @@ class _ResetViewState extends State<ResetView> {
             Text(
               'Info Text',
               style: TextStyle(
-                fontSize: _responsiveFont(context, 36, min: 30, max: 40),
+                fontSize: _responsiveFont(context, 30, min: 24, max: 34),
                 fontWeight: FontWeight.w600,
                 color: palette.textPrimary,
               ),
@@ -447,7 +402,7 @@ class _ResetViewState extends State<ResetView> {
             Text(
               'Supporting line text lorem ipsum dolor sit amet, consectetur.',
               style: TextStyle(
-                fontSize: _responsiveFont(context, 16, min: 15, max: 18),
+                fontSize: _responsiveFont(context, 15, min: 14, max: 16),
                 height: 1.35,
                 color: palette.textSecondary,
               ),
@@ -493,7 +448,7 @@ class _AuthTitle extends StatelessWidget {
       title,
       textAlign: TextAlign.left,
       style: TextStyle(
-        fontSize: _responsiveFont(context, 52, min: 40, max: 56),
+        fontSize: _responsiveFont(context, 42, min: 34, max: 48),
         fontWeight: FontWeight.w700,
         color: palette.textPrimary,
       ),
@@ -555,7 +510,7 @@ class _BrandWordmarkState extends State<_BrandWordmark> {
         return Text(
           AppBrand.current.appName,
           style: TextStyle(
-            fontSize: _responsiveFont(context, 28, min: 22, max: 34),
+            fontSize: _responsiveFont(context, 24, min: 20, max: 28),
             fontWeight: FontWeight.w800,
             color: context.brandPalette.primary,
           ),
@@ -589,7 +544,7 @@ class _AuthField extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: _responsiveFont(context, 16, min: 15, max: 18),
+            fontSize: _responsiveFont(context, 14, min: 13, max: 16),
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
             color: palette.textSecondary,
@@ -601,38 +556,38 @@ class _AuthField extends StatelessWidget {
           validator: validator,
           obscureText: obscure,
           style: TextStyle(
-            fontSize: _responsiveFont(context, 20, min: 19, max: 22),
+            fontSize: _responsiveFont(context, 18, min: 16, max: 20),
             color: palette.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              fontSize: _responsiveFont(context, 20, min: 19, max: 22),
+              fontSize: _responsiveFont(context, 18, min: 16, max: 20),
               color: palette.textSecondary,
             ),
             filled: true,
             fillColor: palette.surfaceMuted,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(
-                _vw(context, 0.04, min: 16, max: 24),
+                _vw(context, 0.04, min: 14, max: 18),
               ),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(
-                _vw(context, 0.04, min: 16, max: 24),
+                _vw(context, 0.04, min: 14, max: 18),
               ),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(
-                _vw(context, 0.04, min: 16, max: 24),
+                _vw(context, 0.04, min: 14, max: 18),
               ),
               borderSide: BorderSide(color: palette.primary, width: 1.5),
             ),
             contentPadding: EdgeInsets.symmetric(
-              horizontal: _vw(context, 0.05, min: 18, max: 24),
-              vertical: _vh(context, 0.022, min: 16, max: 22),
+              horizontal: _vw(context, 0.05, min: 14, max: 18),
+              vertical: _vh(context, 0.022, min: 12, max: 16),
             ),
           ),
         ),
@@ -658,7 +613,7 @@ class _AuthPrimaryButton extends StatelessWidget {
     final label = Text(
       text,
       style: TextStyle(
-        fontSize: _responsiveFont(context, 22, min: 20, max: 24),
+        fontSize: _responsiveFont(context, 19, min: 18, max: 21),
         fontWeight: FontWeight.w600,
       ),
     );
@@ -668,8 +623,8 @@ class _AuthPrimaryButton extends StatelessWidget {
       foregroundColor: palette.onPrimary,
       shape: const StadiumBorder(),
       padding: EdgeInsets.symmetric(
-        horizontal: _vw(context, 0.04, min: 14, max: 24),
-        vertical: _vh(context, 0.022, min: 16, max: 22),
+        horizontal: _vw(context, 0.04, min: 12, max: 18),
+        vertical: _vh(context, 0.022, min: 12, max: 16),
       ),
     );
 
@@ -682,7 +637,7 @@ class _AuthPrimaryButton extends StatelessWidget {
               style: style,
               icon: Icon(
                 icon,
-                size: _responsiveFont(context, 22, min: 20, max: 24),
+                size: _responsiveFont(context, 19, min: 18, max: 21),
               ),
               label: label,
             ),
@@ -708,7 +663,7 @@ class _AuthTextLink extends StatelessWidget {
             color: palette.textPrimary,
             decoration: TextDecoration.underline,
             decorationColor: palette.textPrimary,
-            fontSize: _responsiveFont(context, 17, min: 16, max: 20),
+            fontSize: _responsiveFont(context, 15, min: 14, max: 18),
           ),
         ),
       ),

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="sandbox_flutter"
+        android:label="MyLens_App_bachelor_practical"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

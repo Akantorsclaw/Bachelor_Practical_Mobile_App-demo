@@ -1701,56 +1701,48 @@ class ProfileOverviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final palette = context.brandPalette;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
       children: [
-        const Center(
-          child: Text(
-            'Profile settings',
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w500),
+        Text(
+          'Profile settings',
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            color: palette.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
         _ProfileInfoCard(title: 'Name', value: name),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         _ProfileInfoCard(title: 'Email', value: email),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         _ProfileInfoCard(title: 'Selected Optician', value: selectedOptician),
-        const SizedBox(height: 24),
-        Center(
-          child: SecondaryPillButton(
-            text: 'Edit Profile',
-            onTap: () => _editProfile(context),
-          ),
+        const SizedBox(height: 22),
+        _ProfileActionButton(
+          text: 'Edit Profile',
+          onTap: () => _editProfile(context),
         ),
         const SizedBox(height: 14),
-        Center(
-          child: SecondaryPillButton(
-            text: 'Change Optician',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Change optician flow not implemented yet.'),
-                ),
-              );
-            },
-          ),
+        _ProfileActionButton(
+          text: 'Change Optician',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Change optician flow not implemented yet.'),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 14),
-        Center(
-          child: SecondaryPillButton(
-            text: 'Notification Settings',
-            onTap: () => onNotificationSettings(),
-          ),
+        _ProfileActionButton(
+          text: 'Notification Settings',
+          onTap: () => onNotificationSettings(),
         ),
         const SizedBox(height: 14),
-        Center(
-          child: SecondaryPillButton(
-            text: 'Privacy & Data',
-            onTap: () => onPrivacy(),
-          ),
-        ),
-        const SizedBox(height: 20),
+        _ProfileActionButton(text: 'Privacy & Data', onTap: () => onPrivacy()),
+        const SizedBox(height: 28),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
@@ -1783,15 +1775,13 @@ class ProfileOverviewScreen extends StatelessWidget {
             icon: const Icon(Icons.logout_rounded),
             label: const Text(
               'Logout',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               backgroundColor: colors.error,
               foregroundColor: colors.onError,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+              shape: const StadiumBorder(),
             ),
           ),
         ),
@@ -1917,35 +1907,46 @@ class _NotificationSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Scaffold(
       appBar: const TopBackAppBar(title: 'Notification Settings'),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 16, 14, 18),
-        child: Column(
-          children: [
-            _settingsToggleTile(
-              label: 'Rating reminders',
-              value: _ratingReminders,
-              onChanged: (value) => setState(() => _ratingReminders = value),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        children: [
+          Text(
+            'Notification Settings',
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
             ),
-            const SizedBox(height: 14),
-            _settingsToggleTile(
-              label: 'Service notifications',
-              value: _serviceNotifications,
-              onChanged: (value) =>
-                  setState(() => _serviceNotifications = value),
-            ),
-            const Spacer(),
-            SecondaryPillButton(
-              text: 'Save selection',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Notification settings saved.')),
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 14),
+          _settingsRow(
+            context,
+            label: 'Rating reminders',
+            value: _ratingReminders,
+            onChanged: (value) => setState(() => _ratingReminders = value),
+          ),
+          Divider(height: 1, color: palette.border),
+          _settingsRow(
+            context,
+            label: 'Service notifications',
+            value: _serviceNotifications,
+            onChanged: (value) => setState(() => _serviceNotifications = value),
+          ),
+          Divider(height: 1, color: palette.border),
+          const SizedBox(height: 20),
+          _ProfileActionButton(
+            text: 'Save selection',
+            primaryStyle: true,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notification settings saved.')),
+              );
+            },
+          ),
+        ],
       ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 2,
@@ -1974,8 +1975,6 @@ class PrivacyDataProtectionScreen extends StatefulWidget {
 /// State for privacy consent controls and withdrawal confirmation.
 class _PrivacyDataProtectionScreenState
     extends State<PrivacyDataProtectionScreen> {
-  bool _consentGranted = true;
-
   /// Confirms account-data withdrawal before executing the action.
   Future<void> _handleWithdrawConsent() async {
     final confirmed = await showDialog<bool>(
@@ -2003,8 +2002,6 @@ class _PrivacyDataProtectionScreenState
 
     if (confirmed != true) return;
 
-    setState(() => _consentGranted = false);
-
     if (!mounted) return;
 
     showDialog<void>(
@@ -2026,7 +2023,6 @@ class _PrivacyDataProtectionScreenState
     }
 
     if (error != null) {
-      setState(() => _consentGranted = true);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
@@ -2035,68 +2031,108 @@ class _PrivacyDataProtectionScreenState
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Scaffold(
       appBar: const TopBackAppBar(title: 'Privacy & Data Protection'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 16, 14, 18),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         children: [
-          _privacyCard(
-            child: const Text(
-              'Privacy Information\n'
-              'Your personal data is processed in accordance with the GDPR.\n\n'
-              'Stored data includes:\n'
-              '• Lens registrations\n'
-              '• Ratings and feedback\n'
-              '• Selected optician',
-              style: TextStyle(fontSize: 15, height: 1.45),
+          Text(
+            'Privacy & Data Protection',
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
             ),
           ),
           const SizedBox(height: 14),
-          _privacyCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Data Processing Consent\n\n'
-                    'I agree to the processing of my personal data for app functionality',
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.4,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Switch(
-                  value: _consentGranted,
-                  onChanged: (value) => setState(() => _consentGranted = value),
-                ),
-              ],
+          Text(
+            'Privacy Information',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _privacyCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Information\n'
-                  'If you withdraw consent:\n'
-                  '• Your personal data will be deleted\n'
-                  '• Registered lenses will be removed\n'
-                  '• Ratings will be anonymized',
-                  style: TextStyle(fontSize: 15, height: 1.45),
-                ),
-                const SizedBox(height: 14),
-                Center(
-                  child: SecondaryPillButton(
-                    text: 'Withdraw Consent',
-                    onTap: _handleWithdrawConsent,
-                  ),
-                ),
-              ],
+            context,
+            child: Text(
+              'Your personal data is processed in accordance with the GDPR.',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.35,
+                color: palette.textPrimary,
+              ),
             ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Stored data includes:',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _privacyCard(
+            context,
+            child: Text(
+              '• Lens registrations\n• Ratings and feedback\n• Selected optician',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.55,
+                color: palette.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Data Processing Consent',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _privacyCard(
+            context,
+            child: Text(
+              'I agree to the processing of my personal data for app functionality.',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.35,
+                color: palette.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Information',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _privacyCard(
+            context,
+            child: Text(
+              'If you withdraw consent:\n• Your personal data will be deleted\n• Registered lenses will be removed\n• Ratings will be anonymized',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.55,
+                color: palette.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _ProfileActionButton(
+            text: 'Withdraw Consent',
+            onTap: _handleWithdrawConsent,
           ),
         ],
       ),
@@ -2148,23 +2184,33 @@ class _ProfileInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFEAF2),
-        borderRadius: BorderRadius.circular(4),
+        color: palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: palette.textSecondary,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
+            style: TextStyle(
+              fontSize: 18,
+              height: 1.2,
+              color: palette.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -2172,34 +2218,81 @@ class _ProfileInfoCard extends StatelessWidget {
   }
 }
 
-/// Shared toggle tile widget builder for notification settings.
-Widget _settingsToggleTile({
+class _ProfileActionButton extends StatelessWidget {
+  const _ProfileActionButton({
+    required this.text,
+    required this.onTap,
+    this.primaryStyle = false,
+  });
+
+  final String text;
+  final VoidCallback onTap;
+  final bool primaryStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.watch_later_outlined, size: 24),
+        label: Text(
+          text,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(60),
+          backgroundColor: primaryStyle ? palette.primary : palette.secondary,
+          foregroundColor: primaryStyle ? palette.onPrimary : palette.primary,
+          shape: const StadiumBorder(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared settings row widget used on notification settings.
+Widget _settingsRow(
+  BuildContext context, {
   required String label,
   required bool value,
   required ValueChanged<bool> onChanged,
 }) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-    decoration: BoxDecoration(
-      color: const Color(0xFFEFEAF2),
-      borderRadius: BorderRadius.circular(4),
-    ),
+  final palette = context.brandPalette;
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
     child: Row(
       children: [
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
-        Switch(value: value, onChanged: onChanged),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: palette.textPrimary,
+            ),
+          ),
+        ),
+        Switch(
+          value: value,
+          activeTrackColor: palette.primary,
+          activeThumbColor: palette.onPrimary,
+          onChanged: onChanged,
+        ),
       ],
     ),
   );
 }
 
 /// Shared card container builder for privacy screens.
-Widget _privacyCard({required Widget child}) {
+Widget _privacyCard(BuildContext context, {required Widget child}) {
+  final palette = context.brandPalette;
   return Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
     decoration: BoxDecoration(
-      color: const Color(0xFFEFEAF2),
-      borderRadius: BorderRadius.circular(12),
+      color: palette.surfaceMuted,
+      borderRadius: BorderRadius.circular(14),
     ),
     child: child,
   );

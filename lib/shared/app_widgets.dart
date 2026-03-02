@@ -26,15 +26,15 @@ class FormInput extends StatelessWidget {
       controller: controller,
       obscureText: obscure,
       validator: validator,
-      style: const TextStyle(fontSize: 20),
+      style: const TextStyle(fontSize: 18),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         floatingLabelBehavior: FloatingLabelBehavior.always,
         filled: true,
         fillColor: palette.secondary,
-        labelStyle: TextStyle(fontSize: 14, color: palette.textSecondary),
-        hintStyle: TextStyle(fontSize: 24, color: palette.textPrimary),
+        labelStyle: TextStyle(fontSize: 13, color: palette.textSecondary),
+        hintStyle: TextStyle(fontSize: 20, color: palette.textPrimary),
         suffixIcon: IconButton(
           onPressed: controller.clear,
           icon: Icon(Icons.cancel_outlined, color: palette.textSecondary),
@@ -62,13 +62,13 @@ class PrimaryPillButton extends StatelessWidget {
       icon: const Icon(Icons.stars_rounded, size: 16),
       label: Text(
         text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
       style: FilledButton.styleFrom(
         backgroundColor: palette.primary,
         foregroundColor: palette.onPrimary,
         shape: const StadiumBorder(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
       ),
     );
   }
@@ -93,13 +93,13 @@ class SecondaryPillButton extends StatelessWidget {
       icon: const Icon(Icons.stars_rounded, size: 16),
       label: Text(
         text,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
       style: FilledButton.styleFrom(
         backgroundColor: palette.secondary,
         foregroundColor: palette.primary,
         shape: const StadiumBorder(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       ),
     );
   }

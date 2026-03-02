@@ -1,6 +1,6 @@
 {
-    "name": "sandbox_flutter",
-    "short_name": "sandbox_flutter",
+    "name": "MyLens_App_bachelor_practical",
+    "short_name": "MyLens_App_bachelor_practical",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

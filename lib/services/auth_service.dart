@@ -36,8 +36,10 @@ class AuthService {
     return _auth.sendPasswordResetEmail(email: email);
   }
 
-  /// Updates the email of the currently signed-in user.
-  Future<void> updateEmail(String email) async {
+  /// Sends a verification link to confirm changing the current user's email.
+  ///
+  /// The email is only changed after the user opens the verification link.
+  Future<void> requestEmailChangeVerification(String email) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw FirebaseAuthException(
@@ -45,7 +47,7 @@ class AuthService {
         message: 'No authenticated user found.',
       );
     }
-    await user.updateEmail(email);
+    await user.verifyBeforeUpdateEmail(email);
   }
 
   /// Signs out the currently authenticated user.

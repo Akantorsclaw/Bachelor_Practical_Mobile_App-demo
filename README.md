@@ -1,4 +1,4 @@
-# sandbox_flutter
+# MyLens_App_bachelor_practical
 
 A new Flutter project.
 

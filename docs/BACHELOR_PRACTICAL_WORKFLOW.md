@@ -1,6 +1,6 @@
 # Bachelor Practical Project Workflow Documentation
 
-Project: `sandbox_flutter`  
+Project: `MyLens_App_bachelor_practical`  
 Author: Dominik Bien  
 Report generated: 2026-02-16
 

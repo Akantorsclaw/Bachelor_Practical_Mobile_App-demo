@@ -199,14 +199,21 @@ class SessionController extends ChangeNotifier {
     _setBusy(true);
     try {
       final currentEmail = user.email?.trim().toLowerCase() ?? '';
-      if (nextEmail != currentEmail) {
-        await _authService.updateEmail(nextEmail);
+      final emailChanged = nextEmail != currentEmail;
+
+      if (emailChanged) {
+        await _authService.requestEmailChangeVerification(nextEmail);
       }
+
       await _userProfileService.updateUserProfile(
         uid: user.uid,
-        email: nextEmail,
+        email: currentEmail.isEmpty ? nextEmail : currentEmail,
         name: nextName,
       );
+
+      if (emailChanged) {
+        return 'Verification email sent. Confirm it to finish changing your login email.';
+      }
       return null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
@@ -289,6 +296,20 @@ class SessionController extends ChangeNotifier {
         .watchUserProfile(user.uid)
         .listen((data) {
           _profile = data;
+          final authEmail = user.email?.trim().toLowerCase();
+          final profileEmail = data?.email.trim().toLowerCase();
+          if (data != null &&
+              authEmail != null &&
+              authEmail.isNotEmpty &&
+              authEmail != profileEmail) {
+            unawaited(
+              _userProfileService.updateUserProfile(
+                uid: user.uid,
+                email: authEmail,
+                name: data.name,
+              ),
+            );
+          }
           notifyListeners();
         });
     notifyListeners();
@@ -315,6 +336,8 @@ class SessionController extends ChangeNotifier {
         return 'Password is too weak.';
       case 'too-many-requests':
         return 'Too many attempts. Try again later.';
+      case 'email-change-needs-verification':
+        return 'Please verify your email change using the link sent to your inbox.';
       default:
         return e.message ?? 'Authentication failed.';
     }
