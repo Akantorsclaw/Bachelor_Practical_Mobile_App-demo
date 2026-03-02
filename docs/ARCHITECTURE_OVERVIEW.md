@@ -26,6 +26,8 @@ This app is split into a few simple layers so it stays easy to understand.
 ## 4) Firebase Access
 - `lib/services/auth_service.dart`
 - `lib/services/user_profile_service.dart`
+- `lib/services/lens_service.dart`
+- `lib/services/review_service.dart`
 - These files talk to Firebase APIs so UI code stays clean.
 
 ## 5) Screens
@@ -36,6 +38,8 @@ This app is split into a few simple layers so it stays easy to understand.
 - `lib/shared/app_widgets.dart` = reusable buttons/inputs/nav widgets
 - `lib/shared/validators.dart` = form validators
 - `lib/models/app_user_profile.dart` = typed user profile model
+- `lib/models/app_lens.dart` = typed lens model
+- `lib/models/app_review.dart` = typed review model
 
 ## Data Flow (Simple)
 1. UI calls `SessionController` method.
@@ -50,3 +54,9 @@ This app is split into a few simple layers so it stays easy to understand.
 3. `lib/core/lens_core_shell.dart`
 
 Then read `lib/auth/auth_flow.dart`.
+
+## Feature Notes (Current)
+- Lenses are stored in Firestore under `users/{uid}/lenses`.
+- Reviews are stored in Firestore under `users/{uid}/reviews`.
+- `Rate Lens` flow requires explicit lens selection from registered lenses.
+- `My Lenses` exposes an `Update Review` action per lens card.

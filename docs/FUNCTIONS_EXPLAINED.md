@@ -151,12 +151,18 @@ These are in `lib/core/lens_core_shell.dart`.
 - Opens digital passport screen for a specific lens.
 
 ### `_openRateLens(lens)`
-- Opens rating screen for lens.
-- Saves rating result in local state.
+- Opens rating screen for a specific selected lens.
+- Loads existing review data if available, then upserts changes in Firestore.
+
+### `_pickLensForRating()`
+- Used before opening `Rate Lens`.
+- If there are no registered lenses, shows:
+  - `No lens registered.`
+- Otherwise opens a lens selector sheet.
 
 ### `_openRateOptician()`
 - Opens rating screen for optician.
-- Saves rating result in local state.
+- Persists and updates review in Firestore.
 
 ### `_openNotificationSettings()` and `_openPrivacyDataProtection()`
 - Open profile sub-pages.
@@ -166,7 +172,11 @@ These are in `lib/core/lens_core_shell.dart`.
 - Shows status message.
 
 ### `_addLens(serial, optician)`
-- Adds a new lens to in-memory list used by prototype UI.
+- Adds a new lens under current user in Firestore.
+
+### `onUpdateReview(lens)` in `LensesListScreen`
+- Available in `My Lenses` per lens card.
+- Opens the same lens review flow, so users can edit existing feedback directly from the list.
 
 ---
 
@@ -206,4 +216,3 @@ These are in `lib/core/lens_core_shell.dart`.
 - `lens_core_shell.dart`: logged-in screens
 - `shared/`: reusable UI + validators
 - `models/`: typed data objects
-

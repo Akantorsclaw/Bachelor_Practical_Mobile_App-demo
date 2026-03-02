@@ -7,10 +7,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../app/session_controller.dart';
 import '../branding/brand_context.dart';
 import '../models/app_lens.dart';
+import '../models/app_review.dart';
 import '../models/lens_passport_data.dart';
 import '../services/lens_parameter_info_service.dart';
 import '../services/lens_service.dart';
 import '../services/lens_pass_qr_parser.dart';
+import '../services/review_service.dart';
 import '../shared/app_widgets.dart';
 import '../shared/validators.dart';
 
@@ -27,17 +29,20 @@ class LensCoreShell extends StatefulWidget {
 class _LensCoreShellState extends State<LensCoreShell> {
   static const _qrParser = LensPassQrParser();
   final _lensService = LensService(FirebaseFirestore.instance);
+  final _reviewService = ReviewService(FirebaseFirestore.instance);
 
   int _index = 0;
   bool _loadingLenses = true;
-  RatingData? _opticianRating;
   List<LensItem> _lenses = [];
+  List<AppReview> _reviews = [];
   StreamSubscription<List<AppLens>>? _lensesSubscription;
+  StreamSubscription<List<AppReview>>? _reviewsSubscription;
 
   @override
   void initState() {
     super.initState();
     _subscribeLenses();
+    _subscribeReviews();
   }
 
   @override
@@ -45,12 +50,14 @@ class _LensCoreShellState extends State<LensCoreShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller.userId != widget.controller.userId) {
       _subscribeLenses();
+      _subscribeReviews();
     }
   }
 
   @override
   void dispose() {
     _lensesSubscription?.cancel();
+    _reviewsSubscription?.cancel();
     super.dispose();
   }
 
@@ -81,6 +88,31 @@ class _LensCoreShellState extends State<LensCoreShell> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Could not load lenses from Firestore.'),
+              ),
+            );
+          },
+        );
+  }
+
+  void _subscribeReviews() {
+    _reviewsSubscription?.cancel();
+    final uid = widget.controller.userId;
+    if (uid == null) {
+      setState(() => _reviews = []);
+      return;
+    }
+    _reviewsSubscription = _reviewService
+        .watchReviews(uid)
+        .listen(
+          (data) {
+            if (!mounted) return;
+            setState(() => _reviews = data);
+          },
+          onError: (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not load reviews from Firestore.'),
               ),
             );
           },
@@ -166,20 +198,239 @@ class _LensCoreShellState extends State<LensCoreShell> {
     );
   }
 
-  /// Opens optician rating flow and stores latest result in memory.
-  Future<void> _openRateOptician() async {
-    final result = await Navigator.of(context).push<RatingData>(
+  Future<void> _openRateLensForLens(LensItem lens) async {
+    final uid = widget.controller.userId;
+    if (uid == null) return;
+
+    final reviewId = 'lens_${lens.id}';
+    final existing = _firstReviewWhere((r) => r.id == reviewId);
+    if (existing == null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RateLensScreen(
+            title: 'Rate Your Lens',
+            submitLabel: 'Submit Review',
+            targetName: lens.name,
+            targetSubtitle: 'Progressive Lenses',
+            aspectLabels: const ['Clarity', 'Comfort', 'Durability'],
+            onTabSelected: _navigateFromOverlay,
+            onSubmit: (data) async {
+              await _reviewService.upsertReview(
+                uid,
+                AppReview(
+                  id: reviewId,
+                  targetType: ReviewTargetType.lens,
+                  targetId: lens.id,
+                  targetName: lens.name,
+                  targetSubtitle: 'Progressive Lenses',
+                  overallRating: data.stars,
+                  aspectRatings: data.aspectRatings,
+                  comment: data.comment,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => RateLensScreen(
-          title: 'Your Optician',
-          submitLabel: 'Submit feedback',
-          initialRating: _opticianRating,
+        builder: (_) => EditRatingScreen(
+          title: 'Edit Your Review',
+          targetName: existing.targetName,
+          targetSubtitle: existing.targetSubtitle,
+          aspectLabels: const ['Clarity', 'Comfort', 'Durability'],
+          initialRating: RatingData(
+            stars: existing.overallRating,
+            comment: existing.comment,
+            ratedAt: existing.updatedAt ?? DateTime.now(),
+            aspectRatings: existing.aspectRatings,
+          ),
           onTabSelected: _navigateFromOverlay,
+          onUpdate: (data) async {
+            await _reviewService.upsertReview(
+              uid,
+              AppReview(
+                id: existing.id,
+                targetType: existing.targetType,
+                targetId: existing.targetId,
+                targetName: existing.targetName,
+                targetSubtitle: existing.targetSubtitle,
+                overallRating: data.stars,
+                aspectRatings: data.aspectRatings,
+                comment: data.comment,
+              ),
+            );
+          },
+          onDelete: () => _reviewService.deleteReview(uid, existing.id),
         ),
       ),
     );
-    if (result != null) {
-      setState(() => _opticianRating = result);
+  }
+
+  Future<LensItem?> _pickLensForRating() async {
+    if (_lenses.isEmpty) {
+      if (!mounted) return null;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No lens registered.')));
+      return null;
+    }
+    return showModalBottomSheet<LensItem>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final palette = context.brandPalette;
+        return SafeArea(
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: _lenses.length,
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: palette.border),
+            itemBuilder: (context, index) {
+              final lens = _lenses[index];
+              return ListTile(
+                leading: Icon(
+                  Icons.remove_red_eye_outlined,
+                  color: palette.primary,
+                ),
+                title: Text(lens.name),
+                subtitle: Text('${lens.purchaseDate} • ${lens.optician}'),
+                onTap: () => Navigator.of(context).pop(lens),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// Opens optician rating flow and stores latest result in memory.
+  Future<void> _openRateOptician() async {
+    final uid = widget.controller.userId;
+    if (uid == null) return;
+    final opticianName = _lenses.isNotEmpty
+        ? _lenses.first.optician
+        : 'Your Optician';
+    final existing = _firstReviewWhere((r) => r.id == 'optician_primary');
+
+    if (existing == null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RateLensScreen(
+            title: 'Rate Your Optician',
+            submitLabel: 'Submit Feedback',
+            targetName: opticianName,
+            targetSubtitle: 'Optician partner',
+            aspectLabels: const [
+              'Customer Service',
+              'Expertise',
+              'Store Experience',
+            ],
+            onTabSelected: _navigateFromOverlay,
+            onSubmit: (data) async {
+              await _reviewService.upsertReview(
+                uid,
+                AppReview(
+                  id: 'optician_primary',
+                  targetType: ReviewTargetType.optician,
+                  targetId: 'primary',
+                  targetName: opticianName,
+                  targetSubtitle: 'Optician partner',
+                  overallRating: data.stars,
+                  aspectRatings: data.aspectRatings,
+                  comment: data.comment,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditRatingScreen(
+          title: 'Edit Your Review',
+          targetName: existing.targetName,
+          targetSubtitle: existing.targetSubtitle,
+          aspectLabels: const [
+            'Customer Service',
+            'Expertise',
+            'Store Experience',
+          ],
+          initialRating: RatingData(
+            stars: existing.overallRating,
+            comment: existing.comment,
+            ratedAt: existing.updatedAt ?? DateTime.now(),
+            aspectRatings: existing.aspectRatings,
+          ),
+          onTabSelected: _navigateFromOverlay,
+          onUpdate: (data) async {
+            await _reviewService.upsertReview(
+              uid,
+              AppReview(
+                id: existing.id,
+                targetType: existing.targetType,
+                targetId: existing.targetId,
+                targetName: existing.targetName,
+                targetSubtitle: existing.targetSubtitle,
+                overallRating: data.stars,
+                aspectRatings: data.aspectRatings,
+                comment: data.comment,
+              ),
+            );
+          },
+          onDelete: () => _reviewService.deleteReview(uid, existing.id),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRateMenu() async {
+    final palette = context.brandPalette;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.remove_red_eye_outlined,
+                    color: palette.primary,
+                  ),
+                  title: const Text('Rate Lens'),
+                  onTap: () => Navigator.of(context).pop('lens'),
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.store_mall_directory_outlined,
+                    color: palette.primary,
+                  ),
+                  title: const Text('Rate Optician'),
+                  onTap: () => Navigator.of(context).pop('optician'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'lens') {
+      final lens = await _pickLensForRating();
+      if (lens == null) return;
+      await _openRateLensForLens(lens);
+    } else {
+      await _openRateOptician();
     }
   }
 
@@ -263,22 +514,40 @@ class _LensCoreShellState extends State<LensCoreShell> {
     return days < 0 ? 0 : days;
   }
 
+  int? _ratingForLens(LensItem? lens) {
+    if (lens == null) return null;
+    final review = _firstReviewWhere((r) => r.id == 'lens_${lens.id}');
+    return review?.overallRating;
+  }
+
+  AppReview? _firstReviewWhere(bool Function(AppReview review) test) {
+    for (final review in _reviews) {
+      if (test(review)) return review;
+    }
+    return null;
+  }
+
+  AppReview? _reviewForLens(LensItem lens) {
+    return _firstReviewWhere((r) => r.id == 'lens_${lens.id}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
     final currentLens = _lenses.isEmpty ? null : _lenses.first;
+    final latestReviewTime = _reviews.isEmpty ? null : _reviews.first.updatedAt;
     final pages = [
       DashboardScreen(
         userName: widget.controller.userName,
         lensesCount: _lenses.length,
-        ratingsCount: _opticianRating == null ? 0 : 1,
-        lastRatedLabel: _formatLastRated(_opticianRating?.ratedAt),
+        ratingsCount: _reviews.length,
+        lastRatedLabel: _formatLastRated(latestReviewTime),
         currentLens: currentLens,
-        currentLensRating: _opticianRating?.stars,
+        currentLensRating: _ratingForLens(currentLens),
         daysUntilCheckup: _daysUntilCheckup(currentLens),
         onGoRegister: _openRegisterLens,
         onGoLenses: () => setState(() => _index = 1),
-        onRate: _openRateOptician,
+        onRate: _openRateMenu,
         onOpenPassport: () async {
           if (currentLens == null) {
             if (!mounted) return;
@@ -295,6 +564,8 @@ class _LensCoreShellState extends State<LensCoreShell> {
         loading: _loadingLenses,
         onOpenDetails: _openPassport,
         onDeleteLens: _deleteLens,
+        onUpdateReview: _openRateLensForLens,
+        reviewForLens: _reviewForLens,
       ),
       ProfileOverviewScreen(
         name: widget.controller.userName,
@@ -377,7 +648,7 @@ class DashboardScreen extends StatelessWidget {
   final int daysUntilCheckup;
   final Future<void> Function() onGoRegister;
   final VoidCallback onGoLenses;
-  final VoidCallback onRate;
+  final Future<void> Function() onRate;
   final Future<void> Function() onOpenPassport;
 
   @override
@@ -415,7 +686,7 @@ class DashboardScreen extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         Text(
-          'Current Lens',
+          'Latest Lens',
           style: TextStyle(
             fontSize: 34,
             fontWeight: FontWeight.w700,
@@ -464,7 +735,7 @@ class DashboardScreen extends StatelessWidget {
                 context,
                 icon: Icons.star_border_rounded,
                 title: 'Rate Experience',
-                onTap: onRate,
+                onTap: () => onRate(),
               ),
             ),
             const SizedBox(width: 10),
@@ -902,12 +1173,16 @@ class LensesListScreen extends StatelessWidget {
     required this.loading,
     required this.onOpenDetails,
     required this.onDeleteLens,
+    required this.onUpdateReview,
+    required this.reviewForLens,
   });
 
   final List<LensItem> lenses;
   final bool loading;
   final void Function(LensItem lens) onOpenDetails;
   final Future<void> Function(LensItem lens) onDeleteLens;
+  final Future<void> Function(LensItem lens) onUpdateReview;
+  final AppReview? Function(LensItem lens) reviewForLens;
 
   @override
   Widget build(BuildContext context) {
@@ -939,6 +1214,37 @@ class LensesListScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Builder(
+                builder: (context) {
+                  final review = reviewForLens(lens);
+                  final rated = review != null;
+                  final badgeText = rated
+                      ? 'Rated ${review.overallRating}/5'
+                      : 'Not rated yet';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: rated ? palette.accentSoft : palette.surfaceMuted,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: rated ? palette.primary : palette.border,
+                      ),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: rated ? palette.primary : palette.textSecondary,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   CircleAvatar(
@@ -1029,6 +1335,24 @@ class LensesListScreen extends StatelessWidget {
                   child: const Text(
                     'Details',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => onUpdateReview(lens),
+                  icon: const Icon(Icons.edit_outlined),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: palette.secondary,
+                    foregroundColor: palette.primary,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: const StadiumBorder(),
+                  ),
+                  label: const Text(
+                    'Rate / Update Review',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -1598,31 +1922,36 @@ class RateLensScreen extends StatefulWidget {
     super.key,
     required this.title,
     required this.submitLabel,
+    required this.targetName,
+    required this.targetSubtitle,
+    required this.aspectLabels,
+    required this.onSubmit,
     required this.onTabSelected,
-    this.initialRating,
   });
 
   final String title;
   final String submitLabel;
+  final String targetName;
+  final String targetSubtitle;
+  final List<String> aspectLabels;
+  final Future<void> Function(RatingData data) onSubmit;
   final ValueChanged<int> onTabSelected;
-  final RatingData? initialRating;
 
   @override
   State<RateLensScreen> createState() => _RateLensScreenState();
 }
 
-/// State for rating creation interactions.
 class _RateLensScreenState extends State<RateLensScreen> {
   late final TextEditingController _commentController;
+  late final Map<String, int> _aspectRatings;
   int _rating = 0;
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _rating = widget.initialRating?.stars ?? 0;
-    _commentController = TextEditingController(
-      text: widget.initialRating?.comment ?? 'Lorem',
-    );
+    _commentController = TextEditingController();
+    _aspectRatings = {for (final label in widget.aspectLabels) label: 5};
   }
 
   @override
@@ -1631,119 +1960,147 @@ class _RateLensScreenState extends State<RateLensScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    final data = RatingData(
-      stars: _rating == 0 ? 5 : _rating,
-      comment: _commentController.text.trim().isEmpty
-          ? 'Lorem'
-          : _commentController.text.trim(),
-      ratedAt: DateTime.now(),
-    );
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => EditRatingScreen(
-          initialRating: data,
-          onTabSelected: widget.onTabSelected,
+  Future<void> _submit() async {
+    if (_submitting) return;
+    final rating = _rating == 0 ? 5 : _rating;
+    setState(() => _submitting = true);
+    try {
+      await widget.onSubmit(
+        RatingData(
+          stars: rating,
+          comment: _commentController.text.trim(),
+          ratedAt: DateTime.now(),
+          aspectRatings: _aspectRatings,
         ),
-      ),
-    );
+      );
+      if (!mounted) return;
+      widget.onTabSelected(0);
+      return;
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      final message = e.code == 'permission-denied'
+          ? 'Could not save review: missing Firestore permission.'
+          : 'Could not save review. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save review. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
     return Scaffold(
-      appBar: const TopBackAppBar(),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-          children: [
-            Center(
-              child: Text(
-                widget.title,
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.w600,
-                  color: palette.textPrimary,
-                ),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+        children: [
+          _RatingHeaderCard(
+            title: widget.targetName,
+            subtitle: widget.targetSubtitle,
+            overallLabel: 'How was your experience?',
+            rating: _rating,
+            onSelected: (value) => setState(() => _rating = value),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Rate specific aspects',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...widget.aspectLabels.map(
+            (label) => _AspectRatingRow(
+              label: label,
+              value: _aspectRatings[label] ?? 5,
+              onChanged: (value) =>
+                  setState(() => _aspectRatings[label] = value),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Share your feedback',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _commentController,
+            onChanged: (_) => setState(() {}),
+            minLines: 4,
+            maxLines: 4,
+            style: TextStyle(fontSize: 16, color: palette.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Tell us about your experience...',
+              hintStyle: TextStyle(color: palette.textSecondary),
+              filled: true,
+              fillColor: palette.surfaceMuted,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                width: 126,
-                height: 126,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: palette.border, width: 2),
-                ),
-                child: Icon(
-                  Icons.image_outlined,
-                  size: 58,
-                  color: palette.textSecondary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 34),
-            Center(
-              child: _RatingStars(
-                rating: _rating,
-                onSelected: (value) => setState(() => _rating = value),
-              ),
-            ),
-            const SizedBox(height: 34),
-            Text(
-              'Comment Text Area',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: palette.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _commentController,
-              minLines: 4,
-              maxLines: 4,
-              style: TextStyle(fontSize: 17, color: palette.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Lorem',
-                hintStyle: TextStyle(color: palette.textSecondary),
-                filled: true,
-                fillColor: palette.surfaceMuted,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${_commentController.text.length}/500 characters',
+            style: TextStyle(fontSize: 13, color: palette.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _submit,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send_outlined),
+              label: Text(
+                _submitting ? 'Saving...' : widget.submitLabel,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _submit,
-                icon: const Icon(Icons.send_outlined),
-                label: Text(
-                  widget.submitLabel,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: palette.primary,
-                  foregroundColor: palette.onPrimary,
-                  minimumSize: const Size.fromHeight(56),
-                  shape: const StadiumBorder(),
-                ),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.primary,
+                foregroundColor: palette.onPrimary,
+                minimumSize: const Size.fromHeight(52),
+                shape: const StadiumBorder(),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 1,
@@ -1753,25 +2110,37 @@ class _RateLensScreenState extends State<RateLensScreen> {
   }
 }
 
-/// Rating edit screen shown after submit.
 class EditRatingScreen extends StatefulWidget {
   const EditRatingScreen({
     super.key,
+    required this.title,
+    required this.targetName,
+    required this.targetSubtitle,
+    required this.aspectLabels,
     required this.initialRating,
+    required this.onUpdate,
+    required this.onDelete,
     required this.onTabSelected,
   });
 
+  final String title;
+  final String targetName;
+  final String targetSubtitle;
+  final List<String> aspectLabels;
   final RatingData initialRating;
+  final Future<void> Function(RatingData data) onUpdate;
+  final Future<void> Function() onDelete;
   final ValueChanged<int> onTabSelected;
 
   @override
   State<EditRatingScreen> createState() => _EditRatingScreenState();
 }
 
-/// State for rating edit interactions.
 class _EditRatingScreenState extends State<EditRatingScreen> {
   late final TextEditingController _commentController;
+  late final Map<String, int> _aspectRatings;
   late int _rating;
+  bool _updating = false;
 
   @override
   void initState() {
@@ -1780,6 +2149,10 @@ class _EditRatingScreenState extends State<EditRatingScreen> {
     _commentController = TextEditingController(
       text: widget.initialRating.comment,
     );
+    _aspectRatings = {
+      for (final label in widget.aspectLabels)
+        label: widget.initialRating.aspectRatings[label] ?? 5,
+    };
   }
 
   @override
@@ -1788,115 +2161,343 @@ class _EditRatingScreenState extends State<EditRatingScreen> {
     super.dispose();
   }
 
-  void _update() {
-    Navigator.of(context).pop(
-      RatingData(
-        stars: _rating,
-        comment: _commentController.text.trim().isEmpty
-            ? widget.initialRating.comment
-            : _commentController.text.trim(),
-        ratedAt: DateTime.now(),
-      ),
-    );
+  Future<void> _update() async {
+    if (_updating) return;
+    setState(() => _updating = true);
+    try {
+      await widget.onUpdate(
+        RatingData(
+          stars: _rating == 0 ? 5 : _rating,
+          comment: _commentController.text.trim(),
+          ratedAt: DateTime.now(),
+          aspectRatings: _aspectRatings,
+        ),
+      );
+      if (!mounted) return;
+      widget.onTabSelected(0);
+      return;
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      final message = e.code == 'permission-denied'
+          ? 'Could not update review: missing Firestore permission.'
+          : 'Could not update review. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update review. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    await widget.onDelete();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Review deleted.')));
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    final submittedOn =
+        '${widget.initialRating.ratedAt.year}-${widget.initialRating.ratedAt.month.toString().padLeft(2, '0')}-${widget.initialRating.ratedAt.day.toString().padLeft(2, '0')}';
     return Scaffold(
-      appBar: const TopBackAppBar(),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-          children: [
-            Center(
-              child: Text(
-                'Your Lens / Your Optician',
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.w600,
-                  color: palette.textPrimary,
-                ),
-              ),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: palette.secondary,
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                width: 126,
-                height: 126,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: palette.border, width: 2),
-                ),
-                child: Icon(
-                  Icons.image_outlined,
-                  size: 58,
-                  color: palette.textSecondary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 34),
-            Center(
-              child: _RatingStars(
-                rating: _rating,
-                onSelected: (value) => setState(() => _rating = value),
-              ),
-            ),
-            const SizedBox(height: 34),
-            Text(
-              'Comment Text Area',
+            child: Text(
+              'Review submitted: $submittedOn',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 14,
+                color: palette.textSecondary,
                 fontWeight: FontWeight.w600,
-                color: palette.textPrimary,
               ),
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _commentController,
-              minLines: 4,
-              maxLines: 4,
-              style: TextStyle(fontSize: 17, color: palette.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Lorem',
-                hintStyle: TextStyle(color: palette.textSecondary),
-                filled: true,
-                fillColor: palette.surfaceMuted,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
+          ),
+          const SizedBox(height: 12),
+          _RatingHeaderCard(
+            title: widget.targetName,
+            subtitle: widget.targetSubtitle,
+            overallLabel: 'Update your rating',
+            rating: _rating,
+            onSelected: (value) => setState(() => _rating = value),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Rate specific aspects',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...widget.aspectLabels.map(
+            (label) => _AspectRatingRow(
+              label: label,
+              value: _aspectRatings[label] ?? 5,
+              onChanged: (value) =>
+                  setState(() => _aspectRatings[label] = value),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Update your review',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _commentController,
+            onChanged: (_) => setState(() {}),
+            minLines: 4,
+            maxLines: 4,
+            style: TextStyle(fontSize: 16, color: palette.textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Tell us about your experience...',
+              hintStyle: TextStyle(color: palette.textSecondary),
+              filled: true,
+              fillColor: palette.surfaceMuted,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _update,
-                icon: const Icon(Icons.send_outlined),
-                label: const Text(
-                  'Update',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: palette.primary,
-                  foregroundColor: palette.onPrimary,
-                  minimumSize: const Size.fromHeight(56),
-                  shape: const StadiumBorder(),
-                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${_commentController.text.length}/500 characters',
+            style: TextStyle(fontSize: 13, color: palette.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _update,
+              icon: _updating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send_outlined),
+              label: Text(
+                _updating ? 'Saving...' : 'Update Review',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.primary,
+                foregroundColor: palette.onPrimary,
+                minimumSize: const Size.fromHeight(52),
+                shape: const StadiumBorder(),
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _delete,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text(
+                'Delete Review',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFF9E8E8),
+                foregroundColor: const Color(0xFFD12A2A),
+                minimumSize: const Size.fromHeight(52),
+                shape: const StadiumBorder(),
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 1,
         onSelected: widget.onTabSelected,
       ),
+    );
+  }
+}
+
+class _RatingHeaderCard extends StatelessWidget {
+  const _RatingHeaderCard({
+    required this.title,
+    required this.subtitle,
+    required this.overallLabel,
+    required this.rating,
+    required this.onSelected,
+  });
+
+  final String title;
+  final String subtitle;
+  final String overallLabel;
+  final int rating;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: palette.secondary,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: palette.border),
+                ),
+                child: Icon(
+                  Icons.accessibility_new_rounded,
+                  color: palette.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            overallLabel,
+            style: TextStyle(fontSize: 16, color: palette.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          _RatingStars(rating: rating, onSelected: onSelected),
+        ],
+      ),
+    );
+  }
+}
+
+class _AspectRatingRow extends StatelessWidget {
+  const _AspectRatingRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                color: palette.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          _MiniStars(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStars extends StatelessWidget {
+  const _MiniStars({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Row(
+      children: List.generate(5, (index) {
+        final number = index + 1;
+        final selected = number <= value;
+        return InkWell(
+          onTap: () => onChanged(number),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            child: Icon(
+              selected ? Icons.star : Icons.star_border,
+              color: palette.primary,
+              size: 20,
+            ),
+          ),
+        );
+      }),
     );
   }
 }
@@ -1915,25 +2516,14 @@ class _RatingStars extends StatelessWidget {
       children: List.generate(5, (index) {
         final number = index + 1;
         final isSelected = number <= rating;
-        final borderColor = isSelected ? palette.primary : palette.border;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 3),
           child: InkWell(
-            borderRadius: BorderRadius.circular(22),
             onTap: () => onSelected(number),
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: isSelected ? palette.secondary : Colors.transparent,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: borderColor, width: 2),
-              ),
-              child: Icon(
-                isSelected ? Icons.star : Icons.star_border,
-                color: borderColor,
-                size: 30,
-              ),
+            child: Icon(
+              isSelected ? Icons.star : Icons.star_border,
+              color: palette.primary,
+              size: 42,
             ),
           ),
         );
@@ -2624,11 +3214,13 @@ class RatingData {
     required this.stars,
     required this.comment,
     required this.ratedAt,
+    required this.aspectRatings,
   });
 
   final int stars;
   final String comment;
   final DateTime ratedAt;
+  final Map<String, int> aspectRatings;
 }
 
 /// Full-screen QR scanner that returns the first detected raw value.

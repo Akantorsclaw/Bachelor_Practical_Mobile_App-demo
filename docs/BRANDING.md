@@ -18,3 +18,4 @@ Use these two locations to rebrand the app:
 - The app theme reads from `AppBrand.current`.
 - Shared widgets and loading overlays use `context.brandPalette`.
 - Keep file names stable or update paths in `lib/branding/brand.dart`.
+- Keep design screenshots in `docs/screenshots/design/` and update `docs/DESIGN_WORKFLOW.md` when a screen changes.

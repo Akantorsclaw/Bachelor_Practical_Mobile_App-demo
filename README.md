@@ -11,7 +11,7 @@ The app provides:
 - QR-based lens registration
 - User-linked lens storage in Firestore
 - Digital Lens Passport views (details, prescription, frame measurements)
-- Lens and optician rating flows
+- Lens and optician rating flows (Firestore-backed)
 - Brandable UI system via centralized theme/assets
 
 ## Current App IDs
@@ -97,6 +97,9 @@ flutter test
 - Register -> GDPR consent -> Login -> Home
 - Consent withdrawal flow with logout and loading state
 - Email change via Firebase verification flow
+- `Rate Lens` requires selecting a registered lens first
+- If no lens exists, `Rate Lens` shows `No lens registered.`
+- `My Lenses` supports `Update Review` per lens
 - On app-side profile update:
   - name updates immediately
   - email updates after verification sync
@@ -124,3 +127,4 @@ git reset --hard <commit_sha>
 - `docs/FUNCTIONS_EXPLAINED.md`
 - `docs/BRANDING.md`
 - `docs/BACHELOR_PRACTICAL_WORKFLOW.md`
+- `docs/DESIGN_WORKFLOW.md`

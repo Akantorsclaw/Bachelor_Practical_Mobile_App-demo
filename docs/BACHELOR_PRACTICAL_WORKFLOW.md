@@ -16,6 +16,20 @@ This project implements a branded Flutter mobile application for HOYA digital le
 - rating/feedback flow,
 - maintainable architecture and documentation.
 
+### 1.1 Business Model Constraint (B2B2C)
+
+An important project constraint is the **B2B2C model**:
+
+- HOYA does not interact with the end customer only in a direct D2C manner.
+- The **optician is a mandatory intermediary** in the product and service chain.
+- Therefore, the app scope and UX must not bypass the optician role.
+
+Practical implications for this project:
+
+- Optician context is retained in lens registration and profile-related flows.
+- Product decisions prioritize customer + optician collaboration, not pure self-service.
+- Future features must preserve the optician as part of onboarding, support, and follow-up workflows.
+
 ## 2. Working Methodology
 
 The implementation process follows an iterative assignment-based workflow:
@@ -60,6 +74,10 @@ Key design choices:
 - centralized brand tokens and asset paths,
 - incremental feature evolution with checkpoints.
 
+Additional domain constraint:
+
+- flows are designed to remain compatible with a B2B2C operating model, where optician interaction is not removed from the user journey.
+
 ## 5. Major Implementation Milestones
 
 ### 5.1 Baseline and Refactor
@@ -97,7 +115,8 @@ Key design choices:
 
 - connected lenses to authenticated user path in Firestore (`users/{uid}/lenses/{lensId}`),
 - live lens list subscription per user,
-- delete lens workflow with confirmation.
+- delete lens workflow with confirmation,
+- retained optician linkage in lens records to reflect B2B2C process requirements.
 
 ### 5.7 UX & Navigation Enhancements
 
@@ -159,7 +178,8 @@ This practical project demonstrates:
 - Firebase-backed data architecture,
 - robust handling of asynchronous UI + backend states,
 - branded UI system design,
-- iterative delivery with real-world debugging and requirement changes.
+- iterative delivery with real-world debugging and requirement changes,
+- translation of business constraints (B2B2C and mandatory optician role) into technical and UX decisions.
 
 ## 10. Assignment Log (Live Section)
 
@@ -189,6 +209,23 @@ This section is intended to be updated continuously with each new assignment.
 
 - Lens persistence by user and deletion workflow.
 - Output: Firestore user-linked lens storage, live list sync, delete action with confirmation.
+
+### Assignment 006
+
+- Rating workflow hardening and in-flow review updates.
+- Output:
+  - `Rate Lens` now requires lens selection from registered lenses.
+  - Empty state guard shows `No lens registered.` when no lens exists.
+  - `My Lenses` now provides direct `Update Review` action per lens.
+  - Firestore-backed review save/update flow aligned with redesigned rating screens.
+
+### Assignment 007
+
+- Documentation alignment and design workflow traceability.
+- Output:
+  - Updated `README.md`, `docs/ARCHITECTURE_OVERVIEW.md`, and `docs/FUNCTIONS_EXPLAINED.md`.
+  - Added `docs/DESIGN_WORKFLOW.md` for screenshot-based UI evolution tracking.
+  - Added screenshot storage convention under `docs/screenshots/design/`.
 
 ---
 
