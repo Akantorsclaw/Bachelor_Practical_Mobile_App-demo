@@ -227,6 +227,14 @@ This section is intended to be updated continuously with each new assignment.
   - Added `docs/DESIGN_WORKFLOW.md` for screenshot-based UI evolution tracking.
   - Added screenshot storage convention under `docs/screenshots/design/`.
 
+### Assignment 008
+
+- Profile and notification settings visual redesign.
+- Output:
+  - Reworked profile overview into a branded layout with member summary, account information cards, activity metrics, and settings shortcuts.
+  - Reworked notification settings into a branded layout with channel controls, grouped notification types, explanatory info card, and save action.
+  - Preserved existing edit-profile, settings navigation, logout confirmation, and notification save behaviors while updating the presentation layer.
+
 ---
 
 ## Update Protocol for Future Assignments

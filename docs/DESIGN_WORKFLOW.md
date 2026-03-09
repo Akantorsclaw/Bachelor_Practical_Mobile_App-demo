@@ -63,6 +63,8 @@ When you revise a screen, increment the suffix:
 - Notification Settings: `docs/screenshots/design/51_notification_settings_v1.png`
 - Privacy & Data Protection: `docs/screenshots/design/52_privacy_data_protection_v1.png`
 - Notes:
+  - Profile overview uses a branded hero header, elevated identity card, account cards, activity stats, and settings shortcuts.
+  - Notification settings uses a branded hero header, channel cards, grouped notification-type rows, and a dedicated save action.
   - Profile updates require confirmation.
   - Logout is prominent and requires confirmation.
   - GDPR withdrawal action remains explicit.
