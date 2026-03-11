@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="MyLens_App_bachelor_practical"
+        android:label="Bachelor_Practical_Mobile_App"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

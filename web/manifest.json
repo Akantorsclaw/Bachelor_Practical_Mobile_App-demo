@@ -1,11 +1,11 @@
 {
-    "name": "MyLens_App_bachelor_practical",
-    "short_name": "MyLens_App_bachelor_practical",
+    "name": "Bachelor_Practical_Mobile_App",
+    "short_name": "Bachelor_Practical_Mobile_App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Bachelor Practical Mobile App.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

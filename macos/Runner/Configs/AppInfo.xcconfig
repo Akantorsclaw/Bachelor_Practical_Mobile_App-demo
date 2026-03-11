@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = MyLens_App_bachelor_practical
+PRODUCT_NAME = Bachelor_Practical_Mobile_App
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.dominikbien.mylensapp.bachelorpractical

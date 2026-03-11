@@ -1,4 +1,4 @@
-# MyLens_App_bachelor_practical
+# Bachelor_Practical_Mobile_App
 
 Multi-brand Flutter mobile app for digital lens workflows, built as a bachelor practical project.
 
@@ -18,7 +18,7 @@ The app provides:
 
 ## Current App IDs
 
-- Dart package name: `mylens_app_bachelor_practical`
+- Dart package name: `bachelor_practical_mobile_app`
 - Android applicationId: `com.example.mylens_app_bachelor_practical`
 - iOS bundle ID: `com.dominikbien.mylensapp.bachelorpractical`
 - macOS bundle ID: `com.dominikbien.mylensapp.bachelorpractical`

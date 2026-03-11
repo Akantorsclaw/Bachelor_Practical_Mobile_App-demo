@@ -1,6 +1,6 @@
 # Bachelor Practical Project Workflow Documentation
 
-Project: `MyLens_App_bachelor_practical`  
+Project: `Bachelor_Practical_Mobile_App`  
 Author: Dominik Bien  
 Report generated: 2026-02-16
 

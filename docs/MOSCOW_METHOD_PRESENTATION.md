@@ -1,4 +1,4 @@
-# MoSCoW Presentation: MyLens_App_bachelor_practical
+# MoSCoW Presentation: Bachelor_Practical_Mobile_App
 
 ## Title
 - **Project:** MyLens App Bachelor Practical
@@ -10,7 +10,7 @@
 - Keep the system production-like: secure auth, user-linked data, and maintainable architecture.
 - Prioritize stability first, then UX depth and operational features.
 
-## 3cope Baseline (Today)
+## Scope Baseline (Today)
 - Flutter app with Firebase Auth + Firestore.
 - Auth flow: Register -> GDPR -> Login -> Home.
 - QR scan + parse into digital lens passport.
