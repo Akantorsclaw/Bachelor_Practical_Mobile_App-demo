@@ -8,6 +8,8 @@ class BrandPalette {
     required this.primary,
     required this.secondary,
     required this.tertiary,
+    required this.positiveAccent,
+    required this.negativeAccent,
     required this.scaffoldBackground,
     required this.surface,
     required this.surfaceMuted,
@@ -27,6 +29,8 @@ class BrandPalette {
   final Color primary;
   final Color secondary;
   final Color tertiary;
+  final Color positiveAccent;
+  final Color negativeAccent;
   final Color scaffoldBackground;
   final Color surface;
   final Color surfaceMuted;

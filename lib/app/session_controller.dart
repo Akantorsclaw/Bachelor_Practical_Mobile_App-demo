@@ -227,6 +227,30 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  Future<String?> updatePrivacyPreferences({
+    required bool consentActive,
+    required bool shareWithOptician,
+    required bool shareWithCompany,
+  }) async {
+    final user = _firebaseUser;
+    if (user == null) return 'No authenticated user.';
+
+    _setBusy(true);
+    try {
+      await _userProfileService.updatePrivacyPreferences(
+        uid: user.uid,
+        consentActive: consentActive,
+        shareWithOptician: shareWithOptician,
+        shareWithCompany: shareWithCompany,
+      );
+      return null;
+    } catch (_) {
+      return 'Could not save privacy settings. Please try again.';
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   /// Signs out and returns the app to auth flow.
   Future<void> signOut() async {
     _setBusy(true);

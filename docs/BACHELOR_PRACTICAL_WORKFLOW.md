@@ -235,6 +235,27 @@ This section is intended to be updated continuously with each new assignment.
   - Reworked notification settings into a branded layout with channel controls, grouped notification types, explanatory info card, and save action.
   - Preserved existing edit-profile, settings navigation, logout confirmation, and notification save behaviors while updating the presentation layer.
 
+### Assignment 009
+
+- Multi-brand architecture and SEIKO theme integration.
+- Output:
+  - Extended the branding system from a single static brand to a runtime-switchable registry with `HOYA` and `SEIKO`.
+  - Added SEIKO palette tokens for black, charcoal, gold, green, and magenta accents.
+  - Added brand-aware chrome for app bars, bottom navigation, and startup/auth logo loading.
+  - Added SEIKO asset folder structure for logos and icons.
+
+### Assignment 010
+
+- Privacy and accessibility refinement.
+- Output:
+  - Reworked Privacy & Data Protection into a branded, sectioned screen with GDPR, rights, consent, and withdrawal areas.
+  - Added Firestore-backed privacy preference persistence for:
+    - `consentActive`
+    - `shareWithOptician`
+    - `shareWithCompany`
+  - Updated passport explanation sheets to follow the active brand palette.
+  - Enlarged rating controls and refined star layouts for better accessibility and touch ergonomics.
+
 ---
 
 ## Update Protocol for Future Assignments

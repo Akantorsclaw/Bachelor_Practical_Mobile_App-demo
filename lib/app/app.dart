@@ -65,7 +65,7 @@ class _StartupGateState extends State<_StartupGate>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: widget.controller,
+      animation: Listenable.merge([widget.controller, AppBrand.flavorNotifier]),
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -102,8 +102,6 @@ class _StartupScreen extends StatefulWidget {
 }
 
 class _StartupScreenState extends State<_StartupScreen> {
-  late final Future<_StartupLogoAsset> _assetChoice = _resolveAsset();
-
   Future<_StartupLogoAsset> _resolveAsset() async {
     try {
       await rootBundle.load(AppBrand.current.assets.authLogoSvg);
@@ -124,7 +122,7 @@ class _StartupScreenState extends State<_StartupScreen> {
     return Scaffold(
       body: Center(
         child: FutureBuilder<_StartupLogoAsset>(
-          future: _assetChoice,
+          future: _resolveAsset(),
           builder: (context, snapshot) {
             final choice = snapshot.data;
             if (choice == _StartupLogoAsset.svg) {

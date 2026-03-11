@@ -11,6 +11,16 @@ This file tracks stable restore points for this project.
 
 ## Checkpoint List
 
+### 005 - Multi-Brand + Privacy + Accessibility
+- Tag: `checkpoint/005-multibrand-privacy-accessibility`
+- Contains:
+  - Runtime-switchable brand registry with `HOYA` and `SEIKO`
+  - SEIKO dark-theme palette, gold navigation highlights, and magenta destructive accent
+  - Brand-aware app chrome for app bars, bottom navigation, and info bottom sheets
+  - Privacy & Data Protection redesign with Firestore-backed consent and sharing preferences
+  - Larger, more accessible rating controls with refined single-row star layouts
+  - Updated branding, workflow, design, and README documentation
+
 ### 004 - Branding v0.2
 - Tag: `checkpoint/004-branding-v0.2`
 - Contains:

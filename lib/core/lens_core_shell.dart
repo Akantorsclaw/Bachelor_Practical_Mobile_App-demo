@@ -446,11 +446,26 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens profile privacy and data protection screen.
   Future<void> _openPrivacyDataProtection() async {
+    final profile = widget.controller.profile;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PrivacyDataProtectionScreen(
           onTabSelected: _navigateFromOverlay,
           onWithdrawConsent: _handleWithdrawConsent,
+          consentActive: profile?.consentActive ?? true,
+          shareWithOptician: profile?.shareWithOptician ?? false,
+          shareWithCompany: profile?.shareWithCompany ?? false,
+          onSavePreferences: ({
+            required bool consentActive,
+            required bool shareWithOptician,
+            required bool shareWithCompany,
+          }) {
+            return widget.controller.updatePrivacyPreferences(
+              consentActive: consentActive,
+              shareWithOptician: shareWithOptician,
+              shareWithCompany: shareWithCompany,
+            );
+          },
         ),
       ),
     );
@@ -1645,31 +1660,54 @@ class _PassportLensDetails extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: palette.surface,
+      barrierColor: palette.overlay,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                fieldName,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: palette.textPrimary,
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(top: BorderSide(color: palette.border)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: palette.iconMuted,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                info,
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.35,
-                  color: palette.textSecondary,
+                const SizedBox(height: 18),
+                Text(
+                  fieldName,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  info,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.35,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1919,31 +1957,54 @@ class _PassportDualValueRow extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: palette.surface,
+      barrierColor: palette.overlay,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: palette.textPrimary,
+        return Container(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(top: BorderSide(color: palette.border)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: palette.iconMuted,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                info,
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.35,
-                  color: palette.textSecondary,
+                const SizedBox(height: 18),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  info,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.35,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -2034,8 +2095,12 @@ class _RateLensScreenState extends State<RateLensScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    final darkChrome = palette.scaffoldBackground.computeLuminance() < 0.08;
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: darkChrome ? palette.surfaceStrong : palette.surface,
+        foregroundColor: darkChrome ? palette.onSurface : palette.textPrimary,
+        surfaceTintColor: Colors.transparent,
         title: Text(widget.title),
         actions: [
           IconButton(
@@ -2243,10 +2308,14 @@ class _EditRatingScreenState extends State<EditRatingScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
+    final darkChrome = palette.scaffoldBackground.computeLuminance() < 0.08;
     final submittedOn =
         '${widget.initialRating.ratedAt.year}-${widget.initialRating.ratedAt.month.toString().padLeft(2, '0')}-${widget.initialRating.ratedAt.day.toString().padLeft(2, '0')}';
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: darkChrome ? palette.surfaceStrong : palette.surface,
+        foregroundColor: darkChrome ? palette.onSurface : palette.textPrimary,
+        surfaceTintColor: Colors.transparent,
         title: Text(widget.title),
         actions: [
           IconButton(
@@ -2370,8 +2439,8 @@ class _EditRatingScreenState extends State<EditRatingScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF9E8E8),
-                foregroundColor: const Color(0xFFD12A2A),
+                backgroundColor: palette.negativeAccent,
+                foregroundColor: palette.onPrimary,
                 minimumSize: const Size.fromHeight(52),
                 shape: const StadiumBorder(),
               ),
@@ -2484,10 +2553,10 @@ class _AspectRatingRow extends StatelessWidget {
     final palette = context.brandPalette;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
@@ -2495,12 +2564,13 @@ class _AspectRatingRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 color: palette.textPrimary,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
+          const SizedBox(width: 12),
           _MiniStars(value: value, onChanged: onChanged),
         ],
       ),
@@ -2518,17 +2588,37 @@ class _MiniStars extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (index) {
         final number = index + 1;
         final selected = number <= value;
-        return InkWell(
-          onTap: () => onChanged(number),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Icon(
-              selected ? Icons.star : Icons.star_border,
-              color: palette.primary,
-              size: 20,
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => onChanged(number),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? palette.primary.withValues(alpha: 0.16)
+                      : palette.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: selected ? palette.primary : palette.border,
+                    width: 1.4,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  selected ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: palette.primary,
+                  size: 24,
+                ),
+              ),
             ),
           ),
         );
@@ -2552,13 +2642,41 @@ class _RatingStars extends StatelessWidget {
         final number = index + 1;
         final isSelected = number <= rating;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
-          child: InkWell(
-            onTap: () => onSelected(number),
-            child: Icon(
-              isSelected ? Icons.star : Icons.star_border,
-              color: palette.primary,
-              size: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => onSelected(number),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? palette.primary.withValues(alpha: 0.16)
+                      : palette.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isSelected ? palette.primary : palette.border,
+                    width: 1.8,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: palette.primary.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isSelected ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: palette.primary,
+                  size: 30,
+                ),
+              ),
             ),
           ),
         );
@@ -2954,8 +3072,8 @@ class ProfileOverviewScreen extends StatelessWidget {
               ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(60),
-                backgroundColor: const Color(0xFFF7EAEA),
-                foregroundColor: const Color(0xFFD91F1F),
+                backgroundColor: palette.negativeAccent,
+                foregroundColor: palette.onPrimary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
@@ -3492,10 +3610,23 @@ class PrivacyDataProtectionScreen extends StatefulWidget {
     super.key,
     required this.onTabSelected,
     required this.onWithdrawConsent,
+    required this.consentActive,
+    required this.shareWithOptician,
+    required this.shareWithCompany,
+    required this.onSavePreferences,
   });
 
   final ValueChanged<int> onTabSelected;
   final Future<String?> Function() onWithdrawConsent;
+  final bool consentActive;
+  final bool shareWithOptician;
+  final bool shareWithCompany;
+  final Future<String?> Function({
+    required bool consentActive,
+    required bool shareWithOptician,
+    required bool shareWithCompany,
+  })
+  onSavePreferences;
 
   @override
   State<PrivacyDataProtectionScreen> createState() =>
@@ -3505,6 +3636,36 @@ class PrivacyDataProtectionScreen extends StatefulWidget {
 /// State for privacy consent controls and withdrawal confirmation.
 class _PrivacyDataProtectionScreenState
     extends State<PrivacyDataProtectionScreen> {
+  late bool _consentActive;
+  late bool _shareWithOptician;
+  late bool _shareWithCompany;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _consentActive = widget.consentActive;
+    _shareWithOptician = widget.shareWithOptician;
+    _shareWithCompany = widget.shareWithCompany;
+  }
+
+  Future<void> _savePreferences() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final error = await widget.onSavePreferences(
+      consentActive: _consentActive,
+      shareWithOptician: _shareWithOptician,
+      shareWithCompany: _shareWithCompany,
+    );
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Privacy settings saved.'),
+      ),
+    );
+  }
+
   /// Confirms account-data withdrawal before executing the action.
   Future<void> _handleWithdrawConsent() async {
     final confirmed = await showDialog<bool>(
@@ -3563,112 +3724,605 @@ class _PrivacyDataProtectionScreenState
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
     return Scaffold(
-      appBar: const TopBackAppBar(title: 'Privacy & Data Protection'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
         children: [
-          Text(
-            'Privacy & Data Protection',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              color: palette.textPrimary,
+          Container(
+            height: 236,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [palette.primary, palette.primary.withValues(alpha: 0.9)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Privacy Information',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: palette.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _privacyCard(
-            context,
-            child: Text(
-              'Your personal data is processed in accordance with the GDPR.',
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.35,
-                color: palette.textPrimary,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 54, 24, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.chevron_left_rounded,
+                          color: palette.onPrimary,
+                          size: 38,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Privacy & Data\nProtection',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: palette.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 24),
+                    child: Text(
+                      'Your data security matters\nto us',
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.4,
+                        color: palette.onPrimary.withValues(alpha: 0.92),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          Text(
-            'Stored data includes:',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: palette.textPrimary,
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _PrivacyFeatureCard(
+              icon: Icons.shield_outlined,
+              title: 'GDPR\nCompliant',
+              description:
+                  'Your personal data is processed in accordance with the General Data Protection Regulation (GDPR).',
+              selected: true,
             ),
           ),
-          const SizedBox(height: 10),
-          _privacyCard(
-            context,
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              '• Lens registrations\n• Ratings and feedback\n• Selected optician',
+              'DATA PROCESSING\nCONSENT',
               style: TextStyle(
-                fontSize: 16,
-                height: 1.55,
-                color: palette.textPrimary,
+                fontSize: 18,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+                color: palette.textSecondary,
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          Text(
-            'Data Processing Consent',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: palette.textPrimary,
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _DataProcessingConsentCard(
+              consentActive: _consentActive,
+              onChanged: (value) => setState(() => _consentActive = value),
             ),
           ),
-          const SizedBox(height: 10),
-          _privacyCard(
-            context,
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              'I agree to the processing of my personal data for app functionality.',
+              'DATA SHARING',
               style: TextStyle(
-                fontSize: 16,
-                height: 1.35,
-                color: palette.textPrimary,
+                fontSize: 18,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+                color: palette.textSecondary,
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          Text(
-            'Information',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: palette.textPrimary,
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                _PrivacySharingCard(
+                  icon: Icons.store_mall_directory_outlined,
+                  title: 'Share with\nOptician',
+                  description:
+                      'Allow your optician to access your app data for support and follow-up care.',
+                  value: _shareWithOptician,
+                  onChanged: _consentActive
+                      ? (value) => setState(() => _shareWithOptician = value)
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                _PrivacySharingCard(
+                  icon: Icons.business_outlined,
+                  title: 'Share with\nCompany',
+                  description:
+                      'Allow the company to use your data for service quality, product improvement, and customer care.',
+                  value: _shareWithCompany,
+                  onChanged: _consentActive
+                      ? (value) => setState(() => _shareWithCompany = value)
+                      : null,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          _privacyCard(
-            context,
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              'If you withdraw consent:\n• Your personal data will be deleted\n• Registered lenses will be removed\n• Ratings will be anonymized',
+              'DATA WE STORE',
               style: TextStyle(
-                fontSize: 16,
-                height: 1.55,
-                color: palette.textPrimary,
+                fontSize: 18,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+                color: palette.textSecondary,
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          _ProfileActionButton(
-            text: 'Withdraw Consent',
-            onTap: _handleWithdrawConsent,
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: const [
+                _PrivacyFeatureCard(
+                  icon: Icons.description_outlined,
+                  title: 'Lens\nregistrations',
+                  description: 'Product details and purchase info',
+                ),
+                SizedBox(height: 14),
+                _PrivacyFeatureCard(
+                  icon: Icons.remove_red_eye_outlined,
+                  title: 'Ratings and\nfeedback',
+                  description: 'Your reviews and comments',
+                ),
+                SizedBox(height: 14),
+                _PrivacyFeatureCard(
+                  icon: Icons.shield_outlined,
+                  title: 'Selected\noptician',
+                  description: 'Your preferred vision care provider',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'YOUR RIGHTS',
+              style: TextStyle(
+                fontSize: 18,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+                color: palette.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                _PrivacyFeatureCard(
+                  icon: Icons.download_rounded,
+                  title: 'Download My\nData',
+                  description: 'Get a copy of your personal data',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Data export flow not implemented yet.'),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                _PrivacyFeatureCard(
+                  icon: Icons.article_outlined,
+                  title: 'View Privacy\nPolicy',
+                  description: 'Read our full privacy policy',
+                  selected: true,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Privacy policy link flow not implemented yet.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _savePreferences,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(
+                  _saving ? 'Saving...' : 'Save Privacy Settings',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(58),
+                  backgroundColor: palette.primary,
+                  foregroundColor: palette.onPrimary,
+                  shape: const StadiumBorder(),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _WithdrawConsentCard(onTap: _handleWithdrawConsent),
           ),
         ],
       ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 2,
         onSelected: widget.onTabSelected,
+      ),
+    );
+  }
+}
+
+class _PrivacyFeatureCard extends StatelessWidget {
+  const _PrivacyFeatureCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.selected = false,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    final content = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      decoration: BoxDecoration(
+        color: selected ? palette.secondary : palette.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: selected ? palette.primary : palette.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: selected ? palette.primary : palette.secondary,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              color: selected ? palette.onPrimary : palette.primary,
+              size: 34,
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.4,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return content;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: content,
+      ),
+    );
+  }
+}
+
+class _DataProcessingConsentCard extends StatelessWidget {
+  const _DataProcessingConsentCard({
+    required this.consentActive,
+    required this.onChanged,
+  });
+
+  final bool consentActive;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: palette.secondary,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: palette.primary,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Data\nProcessing',
+                      style: TextStyle(
+                        fontSize: 17,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Allow processing of personal data for app functionality',
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: consentActive,
+                activeTrackColor: palette.primary,
+                activeThumbColor: palette.onPrimary,
+                inactiveTrackColor: palette.border,
+                inactiveThumbColor: palette.surface,
+                onChanged: onChanged,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: consentActive
+                    ? const Color(0xFFE0F3E6)
+                    : const Color(0xFFF2ECE3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                consentActive
+                    ? '✓ Active - Your data is being processed securely'
+                    : 'Consent inactive - App data processing is disabled',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.35,
+                  color: consentActive
+                      ? const Color(0xFF0A8A2A)
+                      : const Color(0xFF8A6B00),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrivacySharingCard extends StatelessWidget {
+  const _PrivacySharingCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Opacity(
+      opacity: onChanged == null ? 0.55 : 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: palette.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: palette.secondary,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, color: palette.primary, size: 34),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 17,
+                      height: 1.25,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              activeTrackColor: palette.primary,
+              activeThumbColor: palette.onPrimary,
+              inactiveTrackColor: palette.border,
+              inactiveThumbColor: palette.surface,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WithdrawConsentCard extends StatelessWidget {
+  const _WithdrawConsentCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE7B9B9), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.delete_outline, color: Color(0xFFE00000)),
+              const SizedBox(width: 10),
+              Text(
+                'Danger Zone',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFE00000),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'This action cannot be undone. Your account and all data will be permanently deleted.',
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.45,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: SizedBox(
+              width: 220,
+              height: 220,
+              child: FilledButton(
+                onPressed: onTap,
+                style: FilledButton.styleFrom(
+                  shape: const CircleBorder(),
+                  backgroundColor: const Color(0xFFE00000),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text(
+                  'Withdraw\nConsent &\nDelete Data',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3885,51 +4539,6 @@ class _ProfileSettingsCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ProfileActionButton extends StatelessWidget {
-  const _ProfileActionButton({
-    required this.text,
-    required this.onTap,
-  });
-
-  final String text;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.brandPalette;
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: onTap,
-        icon: const Icon(Icons.watch_later_outlined, size: 24),
-        label: Text(
-          text,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(60),
-          backgroundColor: palette.secondary,
-          foregroundColor: palette.primary,
-          shape: const StadiumBorder(),
-        ),
-      ),
-    );
-  }
-}
-
-/// Shared card container builder for privacy screens.
-Widget _privacyCard(BuildContext context, {required Widget child}) {
-  final palette = context.brandPalette;
-  return Container(
-    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-    decoration: BoxDecoration(
-      color: palette.surfaceMuted,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: child,
-  );
 }
 
 /// Simple in-memory lens model used by prototype flows.

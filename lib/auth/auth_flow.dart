@@ -468,8 +468,6 @@ class _BrandWordmark extends StatefulWidget {
 }
 
 class _BrandWordmarkState extends State<_BrandWordmark> {
-  late final Future<_BrandLogoAsset> _assetChoice = _resolveAsset();
-
   Future<_BrandLogoAsset> _resolveAsset() async {
     final svgPath = AppBrand.current.assets.authLogoSvg;
     final pngPath = AppBrand.current.assets.authLogoPng;
@@ -490,7 +488,7 @@ class _BrandWordmarkState extends State<_BrandWordmark> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_BrandLogoAsset>(
-      future: _assetChoice,
+      future: _resolveAsset(),
       builder: (context, snapshot) {
         final choice = snapshot.data;
         if (choice == _BrandLogoAsset.svg) {

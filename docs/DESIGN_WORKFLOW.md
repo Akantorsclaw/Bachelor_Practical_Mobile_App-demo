@@ -57,6 +57,7 @@ When you revise a screen, increment the suffix:
 - Notes:
   - Data is parsed from QR payload URL query parameters.
   - Tapping field labels opens explanation cards.
+  - Info sheets now inherit the active brand palette, including dark-brand chrome.
 
 ## 5. Profile and Settings
 - Profile Settings: `docs/screenshots/design/50_profile_settings_v1.png`
@@ -65,6 +66,7 @@ When you revise a screen, increment the suffix:
 - Notes:
   - Profile overview uses a branded hero header, elevated identity card, account cards, activity stats, and settings shortcuts.
   - Notification settings uses a branded hero header, channel cards, grouped notification-type rows, and a dedicated save action.
+  - Privacy & Data Protection now includes GDPR status, consent processing state, optician/company sharing preferences, rights cards, and a redesigned withdrawal section.
   - Profile updates require confirmation.
   - Logout is prominent and requires confirmation.
   - GDPR withdrawal action remains explicit.
@@ -77,6 +79,7 @@ When you revise a screen, increment the suffix:
   - `Rate Lens` requires selecting a registered lens first.
   - Empty state guard: `No lens registered.`
   - Reviews are saved/updated in Firestore.
+  - Rating controls were enlarged and tuned for easier use by older users and people with larger fingers.
 
 ## Update Checklist (Per New UI Assignment)
 

@@ -25,6 +25,16 @@ class BrandThemeExtension extends ThemeExtension<BrandThemeExtension> {
         primary: Color.lerp(palette.primary, other.palette.primary, t)!,
         secondary: Color.lerp(palette.secondary, other.palette.secondary, t)!,
         tertiary: Color.lerp(palette.tertiary, other.palette.tertiary, t)!,
+        positiveAccent: Color.lerp(
+          palette.positiveAccent,
+          other.palette.positiveAccent,
+          t,
+        )!,
+        negativeAccent: Color.lerp(
+          palette.negativeAccent,
+          other.palette.negativeAccent,
+          t,
+        )!,
         scaffoldBackground: Color.lerp(
           palette.scaffoldBackground,
           other.palette.scaffoldBackground,

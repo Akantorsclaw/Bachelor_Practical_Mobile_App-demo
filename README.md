@@ -1,6 +1,6 @@
 # MyLens_App_bachelor_practical
 
-HOYA-branded Flutter mobile app for digital lens workflows, built as a bachelor practical project.
+Multi-brand Flutter mobile app for digital lens workflows, built as a bachelor practical project.
 
 ## Overview
 
@@ -13,6 +13,8 @@ The app provides:
 - Digital Lens Passport views (details, prescription, frame measurements)
 - Lens and optician rating flows (Firestore-backed)
 - Brandable UI system via centralized theme/assets
+- Runtime brand switching between `HOYA` and `SEIKO`
+- Privacy preferences and sharing consents persisted in Firestore
 
 ## Current App IDs
 
@@ -73,6 +75,10 @@ Assets:
 - `assets/branding/logos/auth_logo.png` (fallback)
 - `assets/branding/logos/logomark.png`
 - `assets/branding/icons/app_icon_foreground.png`
+- `assets/branding/seiko/logos/authLogo.svg`
+- `assets/branding/seiko/logos/auth_logo.png`
+- `assets/branding/seiko/logos/logomark.png`
+- `assets/branding/seiko/icons/app_icon_foreground.png`
 
 ## Run
 
@@ -100,6 +106,12 @@ flutter test
 - `Rate Lens` requires selecting a registered lens first
 - If no lens exists, `Rate Lens` shows `No lens registered.`
 - `My Lenses` supports `Update Review` per lens
+- Privacy screen stores:
+  - `consentActive`
+  - `shareWithOptician`
+  - `shareWithCompany`
+- Rating and passport info sheets follow the active brand palette
+- Rating controls were enlarged for better accessibility
 - On app-side profile update:
   - name updates immediately
   - email updates after verification sync

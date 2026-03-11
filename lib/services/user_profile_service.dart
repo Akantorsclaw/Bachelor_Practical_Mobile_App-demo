@@ -36,6 +36,8 @@ class UserProfileService {
       'email': email,
       'name': name,
       'consentActive': true,
+      'shareWithOptician': false,
+      'shareWithCompany': false,
       'consentWithdrawnAt': null,
       'updatedAt': now,
       if (includeGdprConsentAt) 'gdprConsentAt': now,
@@ -67,6 +69,21 @@ class UserProfileService {
     return _users.doc(uid).set({
       'email': email,
       'name': name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Updates privacy sharing preferences and consent state metadata.
+  Future<void> updatePrivacyPreferences({
+    required String uid,
+    required bool consentActive,
+    required bool shareWithOptician,
+    required bool shareWithCompany,
+  }) {
+    return _users.doc(uid).set({
+      'consentActive': consentActive,
+      'shareWithOptician': shareWithOptician,
+      'shareWithCompany': shareWithCompany,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

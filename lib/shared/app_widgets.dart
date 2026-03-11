@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../branding/brand_context.dart';
 
+bool _usesDarkChrome(BuildContext context) {
+  return context.brandPalette.scaffoldBackground.computeLuminance() < 0.08;
+}
+
 /// Shared styled text input used across auth and core screens.
 class FormInput extends StatelessWidget {
   const FormInput({
@@ -119,28 +123,53 @@ class AppBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
-    return NavigationBar(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onSelected,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      backgroundColor: palette.surfaceMuted,
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
-          label: 'Home',
+    return NavigationBarTheme(
+      data: NavigationBarThemeData(
+        backgroundColor: _usesDarkChrome(context)
+            ? palette.surfaceStrong
+            : palette.surfaceMuted,
+        indicatorColor: palette.primary.withValues(
+          alpha: _usesDarkChrome(context) ? 0.16 : 0.12,
         ),
-        NavigationDestination(
-          icon: Icon(Icons.remove_red_eye_outlined),
-          selectedIcon: Icon(Icons.remove_red_eye),
-          label: 'Lenses',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
-          label: 'Profile',
-        ),
-      ],
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? palette.primary : palette.textSecondary,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            color: selected ? palette.primary : palette.textSecondary,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          );
+        }),
+      ),
+      child: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onSelected,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        backgroundColor: _usesDarkChrome(context)
+            ? palette.surfaceStrong
+            : palette.surfaceMuted,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.remove_red_eye_outlined),
+            selectedIcon: Icon(Icons.remove_red_eye),
+            label: 'Lenses',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -200,7 +229,12 @@ class TopBackAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.brandPalette;
+    final darkChrome = _usesDarkChrome(context);
     return AppBar(
+      backgroundColor: darkChrome ? palette.surfaceStrong : palette.surface,
+      foregroundColor: darkChrome ? palette.onSurface : palette.textPrimary,
+      surfaceTintColor: Colors.transparent,
       leading: IconButton(
         onPressed: () => Navigator.of(context).pop(),
         icon: const Icon(Icons.arrow_back),
