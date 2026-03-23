@@ -28,6 +28,26 @@ When you revise a screen, increment the suffix:
 
 ## Current Design Workflow
 
+## AI Support In Design Workflow
+
+- AI models are used as workflow support, not as the source of final product decisions.
+- Typical support tasks:
+  - converting visual references into implementation tasks
+  - mapping design intent into reusable Flutter widgets and palette tokens
+  - identifying inconsistencies between mockups and current UI
+  - proposing responsive layout adjustments before implementation
+  - translating brand guidelines into concrete color, spacing, and component updates
+- Human review remains required for:
+  - final brand fidelity
+  - business constraints such as the B2B2C optician role
+  - legal/privacy-sensitive wording
+  - release decisions and checkpoint approval
+- When AI support is used for a redesign step, document:
+  - the target screen
+  - the input material used (mockup, screenshot, guideline)
+  - the implementation outcome
+  - the validation performed afterward
+
 ## 1. Authentication
 - Login: `docs/screenshots/design/01_auth_login_v1.png`
 - Registration: `docs/screenshots/design/02_auth_register_v1.png`
@@ -85,8 +105,11 @@ When you revise a screen, increment the suffix:
 
 1. Save updated screenshot(s) in `docs/screenshots/design/` with incremented version.
 2. Update affected section paths in this file.
-3. Add one short change note under the relevant screen group.
-4. If behavior changed too, update:
+3. Record which brand variant the screenshot represents (`HOYA` or `SEIKO`) when branding changes the visual result.
+4. If AI support was used, add one short note describing what the model supported in this iteration.
+5. Add one short change note under the relevant screen group.
+6. If the redesign introduced a new color role or reusable style rule, reflect it in `docs/BRANDING.md`.
+7. If behavior changed too, update:
    - `README.md`
    - `docs/ARCHITECTURE_OVERVIEW.md`
    - `docs/FUNCTIONS_EXPLAINED.md`

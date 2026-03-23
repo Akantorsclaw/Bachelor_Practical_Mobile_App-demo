@@ -17,7 +17,7 @@ class AppBrand {
   final BrandAssets assets;
   final BrandPalette palette;
 
-  static const BrandFlavor defaultFlavor = BrandFlavor.seiko;
+  static const BrandFlavor defaultFlavor = BrandFlavor.hoya;
 
   static final ValueNotifier<BrandFlavor> flavorNotifier = ValueNotifier(
     defaultFlavor,
@@ -53,7 +53,7 @@ class AppBrand {
       tertiary: Color(0xFFE7E8ED),
       positiveAccent: Color(0xFF0057BC),
       negativeAccent: Color(0xFF2D2A28),
-      scaffoldBackground: Color(0xFFF4F4F6),
+      scaffoldBackground: Color.fromRGBO(244, 244, 246, 1),
       surface: Color(0xFFFFFFFF),
       surfaceMuted: Color(0xFFF0F1F4),
       surfaceStrong: Color(0xFF2D2A28),

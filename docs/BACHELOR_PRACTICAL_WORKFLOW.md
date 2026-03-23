@@ -256,6 +256,14 @@ This section is intended to be updated continuously with each new assignment.
   - Updated passport explanation sheets to follow the active brand palette.
   - Enlarged rating controls and refined star layouts for better accessibility and touch ergonomics.
 
+### Assignment 011
+
+- Branding usage traceability in design and documentation workflow.
+- Output:
+  - Extended workflow documentation to describe how AI models can support design and documentation tasks.
+  - Added traceability guidance for recording AI-assisted redesign steps and their validation.
+  - Updated the design workflow checklist so AI-supported iterations are documented consistently.
+
 ---
 
 ## Update Protocol for Future Assignments
