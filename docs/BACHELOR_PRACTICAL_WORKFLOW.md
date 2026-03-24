@@ -60,9 +60,10 @@ Core folders:
 
 - `lib/app/` app bootstrap and session control
 - `lib/auth/` unauthenticated flow screens
-- `lib/core/` authenticated app shell and feature screens
+- `lib/core/` authenticated app shell (`lens_core_shell.dart`)
+- `lib/core/screens/` one file per authenticated screen (dashboard, lens list, passport, rating, profile, notifications, privacy, QR registration)
 - `lib/services/` Firebase and parser services
-- `lib/models/` typed data models
+- `lib/models/` typed data models (Firestore models + UI models)
 - `lib/shared/` reusable widgets/validators
 - `lib/branding/` centralized branding and style tokens
 - `docs/` architecture/function/branding and workflow documentation
@@ -263,6 +264,18 @@ This section is intended to be updated continuously with each new assignment.
   - Extended workflow documentation to describe how AI models can support design and documentation tasks.
   - Added traceability guidance for recording AI-assisted redesign steps and their validation.
   - Updated the design workflow checklist so AI-supported iterations are documented consistently.
+
+### Assignment 012
+
+- Codebase modularisation: split monolithic core shell into per-screen files.
+- Output:
+  - Extracted `LensItem` and `RatingData` into `lib/models/lens_item.dart` and `lib/models/rating_data.dart`.
+  - Created `lib/core/screens/` with eight dedicated screen files: `dashboard_screen.dart`, `register_lens_screen.dart`, `lenses_list_screen.dart`, `lens_passport_screen.dart`, `rate_lens_screen.dart`, `profile_overview_screen.dart`, `notification_settings_screen.dart`, `privacy_data_protection_screen.dart`.
+  - `QrScannerScreen` moved to `register_lens_screen.dart` (only caller).
+  - `lens_core_shell.dart` reduced from 4,604 lines to ~370 lines (shell + navigation + stream subscriptions only).
+  - No logic or behaviour changes — pure structural split.
+  - `flutter analyze` passed with zero issues after split.
+  - Updated `ARCHITECTURE_OVERVIEW.md` and `FUNCTIONS_EXPLAINED.md` to reflect new file structure.
 
 ---
 

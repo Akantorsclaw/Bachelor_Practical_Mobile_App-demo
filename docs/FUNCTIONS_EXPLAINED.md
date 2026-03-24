@@ -1,218 +1,274 @@
-# Functions Explained (Beginner Friendly)
+# API and Function Reference
 
-This file explains the most important functions used in this app in simple terms.
-
-## 1) App Startup
-
-### `main()` in `lib/main.dart`
-- This is the first function that runs when the app starts.
-- It does 3 important things:
-1. `WidgetsFlutterBinding.ensureInitialized()`
-   - Prepares Flutter internals before async setup.
-2. `Firebase.initializeApp(...)`
-   - Connects your app to Firebase.
-3. Creates `SessionController` and runs `LensApp`.
-
-Think of `main()` as: "turn everything on, then show the app".
+**Project:** Bachelor_Practical_Mobile_App
+**Scope:** All public and significant private functions across the application
 
 ---
 
-## 2) Navigation Between Logged-Out and Logged-In Parts
+## 1. Application Entry
 
-### `build()` in `LensApp` (`lib/app/app.dart`)
-- Uses `AnimatedBuilder` to rebuild UI whenever `SessionController` changes.
-- Chooses which screen tree to show:
-  - `AuthFlow` if user is not logged in.
-  - `LensCoreShell` if user is logged in.
+### `main()` — `lib/main.dart`
 
-This is the app's main gatekeeper.
+Performs startup sequencing:
+
+1. `WidgetsFlutterBinding.ensureInitialized()` — prepares the Flutter engine binding before any async operations.
+2. `Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)` — establishes the Firebase connection.
+3. Instantiates `SessionController` and calls `runApp(LensApp(...))`.
 
 ---
 
-## 3) Session and Auth Logic
+## 2. App Gate
 
-All these live in `lib/app/session_controller.dart`.
+### `LensApp.build(BuildContext context)` — `lib/app/app.dart`
+
+Wraps the widget tree in an `AnimatedBuilder` bound to `SessionController`. Renders `AuthFlow` when the controller reports no active session, or `LensCoreShell` when a session is active.
+
+---
+
+## 3. Session Controller — `lib/app/session_controller.dart`
+
+`SessionController` extends `ChangeNotifier`. All state mutations call `notifyListeners()` on completion.
 
 ### `goToAuthView(AuthView view)`
-- Changes which auth sub-screen is shown (`login`, `register`, `gdprConsent`, `reset`).
-- Calls `notifyListeners()` so UI updates.
+Sets the active auth sub-screen. Valid values: `login`, `register`, `gdprConsent`, `reset`.
 
-### `signIn({email, password})`
-- Calls Firebase Auth sign-in.
-- Returns `null` on success.
-- Returns a readable error message on failure.
+### `signIn({required String email, required String password}) → Future<String?>`
+Calls `AuthService.signIn`. Returns `null` on success; returns a localised error string on failure.
 
-### `beginRegistration({name, email, password})`
-- Stores registration data temporarily.
-- Moves user to GDPR consent screen.
+### `beginRegistration({required String name, required String email, required String password})`
+Stores pending registration credentials in memory and navigates to the GDPR consent screen. Does not create a Firebase account.
 
-### `completeRegistrationWithConsent()`
-- Runs only after user accepts GDPR.
-- Creates Firebase user with email/password.
-- Creates/updates Firestore doc in `users/{uid}`.
-- Signs out user to preserve your flow:
-  - Register -> GDPR -> Login -> Home
+### `completeRegistrationWithConsent() → Future<String?>`
+Executes the deferred registration:
+1. Calls `AuthService.signUp` with stored credentials.
+2. Writes the user profile to Firestore via `UserProfileService.upsertUserProfile`.
+3. Signs the user out to enforce the Register → GDPR → Login → Home flow.
 
-### `sendPasswordReset(email)`
-- Sends reset email using Firebase Auth.
+### `sendPasswordReset(String email) → Future<String?>`
+Calls `AuthService.sendPasswordResetEmail`. Returns `null` on success or an error string.
 
-### `signOut()`
-- Logs out current user.
-- Sends app back to login flow.
+### `signOut() → Future<void>`
+Signs the current user out of Firebase Auth. Clears session state.
 
-### `withdrawConsentAndLogout()`
-- Deletes profile document from Firestore.
-- Tries to delete Firebase Auth user.
-- Signs out afterward.
-- Used in privacy settings when user withdraws consent.
+### `withdrawConsentAndLogout() → Future<String?>`
+1. Deletes the Firestore profile document.
+2. Attempts to delete the Firebase Auth account.
+3. Signs the user out regardless of step 2 outcome.
+Returns `null` on success or an error message.
 
-### `_onAuthStateChanged(User? user)`
-- Called automatically when login state changes.
-- If logged in: starts listening to user's Firestore profile in real time.
-- If logged out: clears profile state.
+### `updateProfile({required String name, required String email}) → Future<String?>`
+Updates the display name in Firebase Auth and the profile document in Firestore. Returns `null` on success.
 
-### `_mapAuthError(FirebaseAuthException e)`
-- Converts technical Firebase error codes into simple messages for users.
+### `updatePrivacyPreferences({required bool consentActive, required bool shareWithOptician, required bool shareWithCompany}) → Future<String?>`
+Persists the three privacy preference fields to the Firestore `users/{uid}` document. Returns `null` on success.
+
+### `_onAuthStateChanged(User? user)` *(private)*
+Firebase Auth state listener. On sign-in, starts the `UserProfileService.watchUserProfile` stream. On sign-out, clears all session state.
+
+### `_mapAuthError(FirebaseAuthException e) → String` *(private)*
+Converts Firebase error codes into user-facing messages.
 
 ---
 
-## 4) Firebase Service Functions
+## 4. Service Layer — `lib/services/`
 
-These are in `lib/services/`.
+### `AuthService`
 
-## `AuthService` (`lib/services/auth_service.dart`)
+| Method | Signature | Description |
+|---|---|---|
+| `authStateChanges` | `Stream<User?>` | Emits on every auth state change. |
+| `signIn` | `(String email, String password) → Future<UserCredential>` | Firebase email/password sign-in. |
+| `signUp` | `(String email, String password) → Future<UserCredential>` | Creates a Firebase Auth account. |
+| `sendPasswordResetEmail` | `(String email) → Future<void>` | Sends a password reset email. |
+| `signOut` | `() → Future<void>` | Signs the current user out. |
+| `deleteCurrentUser` | `() → Future<void>` | Deletes the Firebase Auth account for the current user. |
 
-### `authStateChanges()`
-- Stream that emits whenever user logs in/out.
+### `UserProfileService`
 
-### `signIn(...)`, `signUp(...)`
-- Wrapper functions for Firebase email/password login/signup.
+| Method | Signature | Description |
+|---|---|---|
+| `watchUserProfile` | `(String uid) → Stream<AppUserProfile?>` | Real-time stream of the `users/{uid}` document. |
+| `upsertUserProfile` | `(String uid, AppUserProfile profile) → Future<void>` | Creates or merges the user profile document. |
+| `deleteUserProfile` | `(String uid) → Future<void>` | Deletes the `users/{uid}` document. |
 
-### `sendPasswordResetEmail(email)`
-- Sends reset email.
+### `LensService`
 
-### `signOut()`
-- Logs current user out.
+| Method | Signature | Description |
+|---|---|---|
+| `watchLenses` | `(String uid) → Stream<List<AppLens>>` | Real-time stream of `users/{uid}/lenses`. |
+| `createLens` | `(String uid, AppLens lens) → Future<void>` | Writes a new lens document. |
+| `deleteLens` | `(String uid, String lensId) → Future<void>` | Removes a lens document. |
 
-## `UserProfileService` (`lib/services/user_profile_service.dart`)
+### `ReviewService`
 
-### `watchUserProfile(uid)`
-- Real-time stream of `users/{uid}` doc.
-- Updates UI automatically when profile data changes.
+| Method | Signature | Description |
+|---|---|---|
+| `watchReviews` | `(String uid) → Stream<List<AppReview>>` | Real-time stream of `users/{uid}/reviews`. |
+| `upsertReview` | `(String uid, AppReview review) → Future<void>` | Creates or updates a review document. |
+| `deleteReview` | `(String uid, String reviewId) → Future<void>` | Removes a review document. |
 
-### `upsertUserProfile(...)`
-- Creates or updates user profile doc.
-- `upsert` means "update if exists, create if not".
+### `LensPassQrParser`
 
-### `deleteUserProfile(uid)`
-- Deletes profile doc.
+| Method | Signature | Description |
+|---|---|---|
+| `parse` | `(String rawValue) → LensPassportData?` | Parses a MyHOYA QR URL. Returns `null` if the URL does not match the expected schema. |
 
----
+### `LensParameterInfoService`
 
-## 5) Auth Screen Callback Functions
-
-These are in `lib/auth/auth_flow.dart` inside `_AuthFlowState`.
-
-### `_handleLogin(...)`
-- Calls controller `signIn`.
-- Shows error snack bar if needed.
-
-### `_handleBeginRegistration(...)`
-- Calls controller `beginRegistration`.
-
-### `_handleGdprAccept()`
-- Calls controller `completeRegistrationWithConsent`.
-- Shows success message.
-
-### `_handleResetPassword(email)`
-- Calls controller `sendPasswordReset`.
-- Shows success/error message.
-
-### `_showSnack(text)`
-- Small helper to show temporary messages at bottom.
+| Method | Signature | Description |
+|---|---|---|
+| `explanationForCode` | `(String code) → String` | Returns a descriptive explanation for a lens parameter code (e.g. `LC`, `SR`, `PDR`). |
 
 ---
 
-## 6) Core App Navigation/Feature Functions
+## 5. Authentication Flow — `lib/auth/auth_flow.dart`
 
-These are in `lib/core/lens_core_shell.dart`.
+Private methods on `_AuthFlowState`:
 
-### `_selectTab(index)`
-- Changes selected bottom navigation tab.
-
-### `_navigateFromOverlay(index)`
-- Used when user is in a pushed detail screen.
-- Goes back to root shell and selects a tab.
-
-### `_openRegisterLens()`
-- Opens lens registration screen.
-
-### `_openPassport(lens)`
-- Opens digital passport screen for a specific lens.
-
-### `_openRateLens(lens)`
-- Opens rating screen for a specific selected lens.
-- Loads existing review data if available, then upserts changes in Firestore.
-
-### `_pickLensForRating()`
-- Used before opening `Rate Lens`.
-- If there are no registered lenses, shows:
-  - `No lens registered.`
-- Otherwise opens a lens selector sheet.
-
-### `_openRateOptician()`
-- Opens rating screen for optician.
-- Persists and updates review in Firestore.
-
-### `_openNotificationSettings()` and `_openPrivacyDataProtection()`
-- Open profile sub-pages.
-
-### `_handleWithdrawConsent()`
-- Calls `SessionController.withdrawConsentAndLogout()`.
-- Shows status message.
-
-### `_addLens(serial, optician)`
-- Adds a new lens under current user in Firestore.
-
-### `onUpdateReview(lens)` in `LensesListScreen`
-- Available in `My Lenses` per lens card.
-- Opens the same lens review flow, so users can edit existing feedback directly from the list.
+| Method | Description |
+|---|---|
+| `_handleLogin(String email, String password)` | Calls `SessionController.signIn`. Displays a snackbar on error. |
+| `_handleBeginRegistration(String name, String email, String password)` | Calls `SessionController.beginRegistration`. |
+| `_handleGdprAccept()` | Calls `SessionController.completeRegistrationWithConsent`. Displays a success message. |
+| `_handleResetPassword(String email)` | Calls `SessionController.sendPasswordReset`. Displays success or error feedback. |
 
 ---
 
-## 7) Model/Utility Functions
+## 6. Authenticated Shell — `lib/core/lens_core_shell.dart`
 
-### `AppUserProfile.fromMap(...)` in `lib/models/app_user_profile.dart`
-- Converts Firestore map data into a Dart object.
+Private methods on `_LensCoreShellState`:
 
-### `validateEmail(...)` and `validatePassword(...)` in `lib/shared/validators.dart`
-- Input checks used by forms.
-- Return `null` when valid, or an error string when invalid.
+### Subscriptions
+
+| Method | Description |
+|---|---|
+| `_subscribeLenses()` | Cancels any existing subscription and opens a new `LensService.watchLenses` stream for the current user. Maps `AppLens` documents to `LensItem` UI models. |
+| `_subscribeReviews()` | Cancels any existing subscription and opens a new `ReviewService.watchReviews` stream. |
+
+### Navigation
+
+| Method | Description |
+|---|---|
+| `_selectTab(int index)` | Sets the active bottom navigation tab. |
+| `_navigateFromOverlay(int index)` | Pops all routes to root, then sets the active tab. Used by detail screens to return to a specific tab. |
+| `_openRegisterLens()` | Pushes `RegisterLensScreen`. |
+| `_openPassport(LensItem lens)` | Pushes `LensPassportScreen` for the given lens. |
+| `_openRateLensForLens(LensItem lens)` | Pushes `RateLensScreen` if no review exists for the lens; pushes `EditRatingScreen` if one does. |
+| `_openRateOptician()` | Pushes `RateLensScreen` or `EditRatingScreen` for the primary optician review (`id: 'optician_primary'`). |
+| `_openRateMenu()` | Presents a bottom sheet to choose between rating a lens or an optician. |
+| `_openNotificationSettings()` | Pushes `NotificationSettingsScreen`. |
+| `_openPrivacyDataProtection()` | Pushes `PrivacyDataProtectionScreen` with current privacy preference values from the session profile. |
+| `_pickLensForRating() → Future<LensItem?>` | Presents a bottom sheet lens selector. Returns `null` and shows a snackbar if no lenses are registered. |
+
+### Data Operations
+
+| Method | Description |
+|---|---|
+| `_addLens(LensItem lens)` | Calls `LensService.createLens`. On success, navigates to the Lenses tab. Handles `permission-denied` with a user-facing message. |
+| `_deleteLens(LensItem lens)` | Calls `LensService.deleteLens`. Handles `permission-denied` with a user-facing message. |
+| `_updateProfile({name, email})` | Delegates to `SessionController.updateProfile`. |
+| `_handleWithdrawConsent() → Future<String?>` | Calls `SessionController.withdrawConsentAndLogout`. On success, pops all routes to expose the auth flow. |
+
+### Utility
+
+| Method | Description |
+|---|---|
+| `_toLensItem(AppLens lens) → LensItem` | Converts a Firestore `AppLens` to the UI `LensItem` model. |
+| `_ratingForLens(LensItem? lens) → int?` | Returns the overall rating for a lens from the in-memory review list, or `null` if no review exists. |
+| `_reviewForLens(LensItem lens) → AppReview?` | Returns the `AppReview` matching `lens_${lens.id}`, or `null`. |
+| `_firstReviewWhere(bool Function(AppReview) test) → AppReview?` | Linear search helper over the review list. |
+| `_formatLastRated(DateTime?) → String` | Returns a day-offset string (e.g. `3d`) or `--` if null. |
+| `_daysUntilCheckup(LensItem?) → int` | Calculates days remaining until the 180-day post-purchase follow-up. Returns `14` if no lens or unparseable date. |
+| `_formatMemberSince(DateTime?) → String` | Returns a `MMM YYYY` formatted string. |
+| `_averageRating() → double` | Returns the mean `overallRating` across all reviews, or `0` if empty. |
 
 ---
 
-## 8) Common Pattern Used in This App
+## 7. Screen-Level Functions
 
-### `notifyListeners()`
-- Used by `SessionController` (which extends `ChangeNotifier`).
-- Means: "state changed, rebuild widgets that are listening".
+### `RegisterLensScreen` — `lib/core/screens/register_lens_screen.dart`
 
-### `Future<T>` and `async/await`
-- Used for operations that take time (network/Firebase).
-- `await` means: pause this function until result arrives.
+| Method | Description |
+|---|---|
+| `_scanQrCode()` | Pushes `QrScannerScreen`. On return, calls `LensPassQrParser.parse` on the raw value and pre-fills the name field with the lens design if available. |
 
-### `Stream<T>`
-- Used for real-time updates (auth state, Firestore snapshots).
-- Think of stream as a continuous data feed.
+### `LensPassportScreen` — `lib/core/screens/lens_passport_screen.dart`
+
+Renders `_PassportLensDetails`, `_PassportPrescription`, or `_PassportFrameMeasurements` based on the selected tab enum value. Each row and dual-value row calls `LensParameterInfoService.explanationForCode` to populate the info bottom sheet.
+
+### `RateLensScreen` — `lib/core/screens/rate_lens_screen.dart`
+
+| Method | Description |
+|---|---|
+| `_submit()` | Assembles a `RatingData` object from current state and calls `onSubmit`. On success, calls `onTabSelected(0)`. Handles `FirebaseException` with a localised message. |
+
+### `EditRatingScreen` — `lib/core/screens/rate_lens_screen.dart`
+
+| Method | Description |
+|---|---|
+| `_update()` | Assembles a `RatingData` object and calls `onUpdate`. On success, calls `onTabSelected(0)`. |
+| `_delete()` | Calls `onDelete`, pops the screen, and shows a confirmation snackbar. |
+
+### `ProfileOverviewScreen` — `lib/core/screens/profile_overview_screen.dart`
+
+| Method | Description |
+|---|---|
+| `_editProfile(BuildContext context)` | Presents `_EditProfileDialog`. On confirmation, calls `onUpdateProfile` and displays the result in a snackbar. |
+
+### `PrivacyDataProtectionScreen` — `lib/core/screens/privacy_data_protection_screen.dart`
+
+| Method | Description |
+|---|---|
+| `_savePreferences()` | Calls `onSavePreferences` with the current consent toggle state. Displays success or error in a snackbar. |
+| `_handleWithdrawConsent()` | Presents a confirmation dialog, then a non-dismissible loading overlay, then calls `onWithdrawConsent`. Dismisses the overlay and handles errors. |
 
 ---
 
-## 9) Quick Mental Model
+## 8. Models — `lib/models/`
 
-- `main.dart`: startup + Firebase init
-- `SessionController`: app brain/state
-- `services/`: talking to Firebase
-- `auth_flow.dart`: logged-out screens
-- `lens_core_shell.dart`: logged-in screens
-- `shared/`: reusable UI + validators
-- `models/`: typed data objects
+### `AppUserProfile`
+Firestore document model for `users/{uid}`. Fields include `name`, `email`, `consentActive`, `shareWithOptician`, `shareWithCompany`, `gdprConsentAt`, `createdAt`.
+
+- `AppUserProfile.fromMap(Map<String, dynamic> map)` — deserialises a Firestore document snapshot.
+- `AppUserProfile.toMap() → Map<String, dynamic>` — serialises for Firestore writes.
+
+### `AppLens`
+Firestore document model for `users/{uid}/lenses/{lensId}`.
+
+- `AppLens.fromMap(String id, Map<String, dynamic> map)` — deserialises a Firestore document.
+- `AppLens.toMap() → Map<String, dynamic>` — serialises for Firestore writes.
+
+### `AppReview`
+Firestore document model for `users/{uid}/reviews/{reviewId}`. Includes `targetType` (`ReviewTargetType.lens` or `ReviewTargetType.optician`), `overallRating`, `aspectRatings`, `comment`, `updatedAt`.
+
+### `LensPassportData`
+In-memory model populated by `LensPassQrParser`. Holds `right` and `left` eye prescription objects, frame measurements, and lens design fields.
+
+### `LensItem`
+Lightweight UI model for a lens. Distinct from `AppLens`. Fields: `id`, `name`, `purchaseDate`, `optician`, `passportData`.
+
+### `RatingData`
+In-memory payload transferred between rating screens and the shell. Fields: `stars`, `comment`, `ratedAt`, `aspectRatings`.
+
+---
+
+## 9. Shared Utilities — `lib/shared/`
+
+### `validateEmail(String? value) → String?`
+Returns `null` if the value is a valid email address. Returns an error string otherwise. Used as a `FormField` validator.
+
+### `validatePassword(String? value) → String?`
+Returns `null` if the value meets minimum password requirements. Returns an error string otherwise.
+
+---
+
+## 10. Branding Utilities — `lib/branding/`
+
+### `context.brandPalette → BrandPalette`
+Extension on `BuildContext`. Returns the active brand's colour token set. Available in any widget's `build` method.
+
+### `AppBrand.setFlavor(BrandFlavor flavor)`
+Switches the active brand at runtime. Triggers a rebuild of the root app via `flavorNotifier`.
+
+### `BrandAssets.logoPath(BrandFlavor flavor) → String`
+Returns the asset path for the given brand's auth logo. Falls back to the default brand path if the brand-specific asset is absent.

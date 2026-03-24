@@ -1,116 +1,205 @@
-# Design Workflow (Screenshot Trace)
+# Design Workflow and UI Traceability
 
-This document tracks the UI evolution per screen and links each state to saved screenshots.
+**Project:** Bachelor_Practical_Mobile_App
 
-## Screenshot Storage Convention
+---
 
-- Folder: `docs/screenshots/design/`
-- Format: `.png`
-- Naming:
-  - `01_auth_login_v1.png`
-  - `02_auth_register_v1.png`
-  - `03_auth_reset_v1.png`
-  - `10_home_dashboard_v1.png`
-  - `20_lens_registration_v1.png`
-  - `30_my_lenses_v1.png`
-  - `40_digital_passport_lens_details_v1.png`
-  - `41_digital_passport_prescription_v1.png`
-  - `42_digital_passport_frame_measurements_v1.png`
-  - `50_profile_settings_v1.png`
-  - `51_notification_settings_v1.png`
-  - `52_privacy_data_protection_v1.png`
-  - `60_rate_lens_v1.png`
-  - `61_rate_optician_v1.png`
-  - `62_edit_review_v1.png`
+## 1. Purpose
 
-When you revise a screen, increment the suffix:
-- `*_v2.png`, `*_v3.png`, ...
+This document establishes the workflow for recording, tracking, and validating UI changes across the application lifecycle. It serves as the traceability record between design intent and implemented screens.
 
-## Current Design Workflow
+---
 
-## AI Support In Design Workflow
+## 2. Screenshot Storage Convention
 
-- AI models are used as workflow support, not as the source of final product decisions.
-- Typical support tasks:
-  - converting visual references into implementation tasks
-  - mapping design intent into reusable Flutter widgets and palette tokens
-  - identifying inconsistencies between mockups and current UI
-  - proposing responsive layout adjustments before implementation
-  - translating brand guidelines into concrete color, spacing, and component updates
-- Human review remains required for:
-  - final brand fidelity
-  - business constraints such as the B2B2C optician role
-  - legal/privacy-sensitive wording
-  - release decisions and checkpoint approval
-- When AI support is used for a redesign step, document:
-  - the target screen
-  - the input material used (mockup, screenshot, guideline)
-  - the implementation outcome
-  - the validation performed afterward
+All design screenshots are stored under `docs/screenshots/design/`.
 
-## 1. Authentication
-- Login: `docs/screenshots/design/01_auth_login_v1.png`
-- Registration: `docs/screenshots/design/02_auth_register_v1.png`
-- Password Reset: `docs/screenshots/design/03_auth_reset_v1.png`
-- Notes:
-  - Full-screen layouts (no card containers).
-  - Brand logo loaded from `authLogo.svg` (SVG-first, PNG fallback).
+**Format:** `.png`
 
-## 2. Core Navigation and Home
-- Home/Dashboard: `docs/screenshots/design/10_home_dashboard_v1.png`
-- Notes:
-  - Dynamic greeting with user name.
-  - Dynamic overview stats and quick actions.
-  - Existing bottom navigation is retained.
+**Naming scheme:** `{screen_id}_{screen_name}_v{version}.png`
 
-## 3. Lens Flows
-- Lens Registration: `docs/screenshots/design/20_lens_registration_v1.png`
-- My Lenses: `docs/screenshots/design/30_my_lenses_v1.png`
-- Notes:
-  - Lenses are persisted to Firestore per user.
-  - My Lenses supports delete and `Update Review`.
+| Screen ID | Screen |
+|---|---|
+| `01` | Auth — Login |
+| `02` | Auth — Registration |
+| `03` | Auth — Password Reset |
+| `10` | Home — Dashboard |
+| `20` | Lens Registration |
+| `30` | My Lenses |
+| `40` | Digital Passport — Lens Details |
+| `41` | Digital Passport — Prescription |
+| `42` | Digital Passport — Frame Measurements |
+| `50` | Profile Overview |
+| `51` | Notification Settings |
+| `52` | Privacy & Data Protection |
+| `60` | Rate Lens |
+| `61` | Rate Optician |
+| `62` | Edit Review |
 
-## 4. Digital Lens Passport
-- Lens Details: `docs/screenshots/design/40_digital_passport_lens_details_v1.png`
-- Prescription: `docs/screenshots/design/41_digital_passport_prescription_v1.png`
-- Frame Measurements: `docs/screenshots/design/42_digital_passport_frame_measurements_v1.png`
-- Notes:
-  - Data is parsed from QR payload URL query parameters.
-  - Tapping field labels opens explanation cards.
-  - Info sheets now inherit the active brand palette, including dark-brand chrome.
+When a screen is revised, increment the version suffix: `_v2.png`, `_v3.png`, and so on. Do not overwrite existing version files.
 
-## 5. Profile and Settings
-- Profile Settings: `docs/screenshots/design/50_profile_settings_v1.png`
-- Notification Settings: `docs/screenshots/design/51_notification_settings_v1.png`
-- Privacy & Data Protection: `docs/screenshots/design/52_privacy_data_protection_v1.png`
-- Notes:
-  - Profile overview uses a branded hero header, elevated identity card, account cards, activity stats, and settings shortcuts.
-  - Notification settings uses a branded hero header, channel cards, grouped notification-type rows, and a dedicated save action.
-  - Privacy & Data Protection now includes GDPR status, consent processing state, optician/company sharing preferences, rights cards, and a redesigned withdrawal section.
-  - Profile updates require confirmation.
-  - Logout is prominent and requires confirmation.
-  - GDPR withdrawal action remains explicit.
+---
 
-## 6. Ratings
-- Rate Lens: `docs/screenshots/design/60_rate_lens_v1.png`
-- Rate Optician: `docs/screenshots/design/61_rate_optician_v1.png`
-- Edit Review: `docs/screenshots/design/62_edit_review_v1.png`
-- Notes:
-  - `Rate Lens` requires selecting a registered lens first.
-  - Empty state guard: `No lens registered.`
-  - Reviews are saved/updated in Firestore.
-  - Rating controls were enlarged and tuned for easier use by older users and people with larger fingers.
+## 3. AI-Assisted Design Workflow
 
-## Update Checklist (Per New UI Assignment)
+AI models are used as implementation support tooling, not as decision-making authorities. Human review and approval are required at every stage.
 
-1. Save updated screenshot(s) in `docs/screenshots/design/` with incremented version.
-2. Update affected section paths in this file.
-3. Record which brand variant the screenshot represents (`HOYA` or `SEIKO`) when branding changes the visual result.
-4. If AI support was used, add one short note describing what the model supported in this iteration.
-5. Add one short change note under the relevant screen group.
-6. If the redesign introduced a new color role or reusable style rule, reflect it in `docs/BRANDING.md`.
-7. If behavior changed too, update:
-   - `README.md`
+### Permitted AI support tasks
+
+- Converting visual references into structured implementation tasks
+- Mapping design intent to reusable Flutter widgets and palette tokens
+- Identifying inconsistencies between design mockups and the current UI
+- Proposing responsive layout adjustments prior to implementation
+- Translating brand guidelines into concrete colour, spacing, and component changes
+
+### Human review requirements
+
+The following decisions require human approval regardless of AI involvement:
+
+- Final brand fidelity validation
+- Business constraint compliance (B2B2C model, mandatory optician role)
+- Legal and privacy-sensitive wording
+- Release decisions and checkpoint tagging
+
+### Documentation requirement for AI-assisted steps
+
+When an AI model supports a redesign iteration, record the following:
+
+1. Target screen
+2. Input material provided (mockup, screenshot, brand guideline)
+3. Implementation outcome
+4. Validation performed (static analysis, runtime test, visual review)
+
+---
+
+## 4. Screen Design Records
+
+### 4.1 Authentication
+
+**Files:** `01_auth_login_v1.png`, `02_auth_register_v1.png`, `03_auth_reset_v1.png`
+
+- Full-screen layouts without card containers.
+- Brand logo loaded from `authLogo.svg`; falls back to `auth_logo.png` if SVG is absent.
+
+---
+
+### 4.2 Home — Dashboard
+
+**File:** `10_home_dashboard_v1.png`
+
+- Dynamic greeting using authenticated user's display name.
+- Activity stats row (lens count, rating count, days since last rating).
+- Current lens card with inline rating display.
+- Quick action grid: Register Lens, My Lenses, Rate Experience, Lens Passport.
+- Upcoming check-up reminder calculated from lens purchase date (180-day interval).
+
+---
+
+### 4.3 Lens Registration
+
+**File:** `20_lens_registration_v1.png`
+
+- Name input field pre-filled on successful QR scan.
+- QR scan button launches `QrScannerScreen`; parsed fields populate form automatically.
+- Optician selector (dropdown).
+- Registered lenses are persisted to Firestore under `users/{uid}/lenses`.
+
+---
+
+### 4.4 My Lenses
+
+**File:** `30_my_lenses_v1.png`
+
+- Per-lens card showing name, purchase date, optician, and rating badge.
+- Delete action with confirmation dialog.
+- `Rate / Update Review` shortcut per lens card.
+
+---
+
+### 4.5 Digital Lens Passport
+
+**Files:** `40_digital_passport_lens_details_v1.png`, `41_digital_passport_prescription_v1.png`, `42_digital_passport_frame_measurements_v1.png`
+
+- Segmented control for three tabs: Lens Details, Prescription, Frame Measurements.
+- Data is sourced from QR payload URL query parameters parsed by `LensPassQrParser`.
+- Tapping a field label opens a bottom sheet explanation sourced from `LensParameterInfoService`.
+- Info sheets and overlays adapt to the active brand palette, including SEIKO dark chrome.
+
+---
+
+### 4.6 Profile Overview
+
+**File:** `50_profile_settings_v1.png`
+
+- Branded gradient hero header with identity card (avatar initials, name, member since, lens count badge).
+- Account information section: email (editable), optician (placeholder).
+- Activity metrics: lenses owned, reviews given, average rating.
+- Settings shortcuts: Notification Settings, Privacy & Data Protection.
+- Logout action requires confirmation dialog.
+- Profile updates require confirmation dialog.
+
+---
+
+### 4.7 Notification Settings
+
+**File:** `51_notification_settings_v1.png`
+
+- Branded gradient hero header.
+- Channel cards: Push Notifications, Email Notifications.
+- Notification type rows: Rating Reminders, Service Notifications, New Lens Alerts.
+- Informational card.
+- Save action (currently persists to local state only; backend persistence is a pending Should-Have item).
+
+---
+
+### 4.8 Privacy & Data Protection
+
+**File:** `52_privacy_data_protection_v1.png`
+
+- Branded gradient hero header.
+- GDPR compliance status card.
+- Data Processing Consent toggle with active/inactive status indicator.
+- Data Sharing toggles: Share with Optician, Share with Company (disabled when consent is inactive).
+- Data We Store: informational cards listing stored data categories.
+- Your Rights: Download My Data and View Privacy Policy (placeholder flows).
+- Save Privacy Settings action persists preferences to Firestore.
+- Withdraw Consent section with destructive confirmation flow and loading overlay.
+
+---
+
+### 4.9 Rating — Create
+
+**File:** `60_rate_lens_v1.png`, `61_rate_optician_v1.png`
+
+- `Rate Lens` requires selecting a registered lens from a bottom sheet picker.
+- Empty state: `No lens registered.` snackbar when no lenses exist.
+- Overall star rating (enlarged for touch accessibility).
+- Per-aspect rating rows.
+- Comment text field.
+- Reviews saved to Firestore via `ReviewService.upsertReview`.
+
+---
+
+### 4.10 Rating — Edit
+
+**File:** `62_edit_review_v1.png`
+
+- Pre-populated from existing `AppReview` document.
+- Update action overwrites the existing review document.
+- Delete action removes the review document.
+
+---
+
+## 5. Update Checklist
+
+For every UI assignment or screen revision:
+
+1. Save updated screenshot(s) in `docs/screenshots/design/` with an incremented version suffix.
+2. Update the corresponding file path entry in Section 4 of this document.
+3. If the screenshot represents a specific brand variant (e.g. SEIKO dark theme), note this alongside the file path.
+4. If AI support was used, add a brief note in the relevant screen section describing the support task and validation outcome.
+5. If a new colour role or reusable style rule was introduced, update `docs/BRANDING.md`.
+6. If behaviour or structure changed, update:
    - `docs/ARCHITECTURE_OVERVIEW.md`
    - `docs/FUNCTIONS_EXPLAINED.md`
-   - `docs/BACHELOR_PRACTICAL_WORKFLOW.md` (assignment log)
+   - `docs/BACHELOR_PRACTICAL_WORKFLOW.md` (assignment log section)

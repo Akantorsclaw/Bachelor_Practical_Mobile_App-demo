@@ -11,6 +11,15 @@ This file tracks stable restore points for this project.
 
 ## Checkpoint List
 
+### 006 - Screen Refactor + Code Cleanup + Documentation Cleanup
+- Tag: `checkpoint/006-refactor-cleanup-docs`
+- Contains:
+  - Extraction of major UI flows from `lib/core/lens_core_shell.dart` into dedicated screen files under `lib/core/screens`
+  - Introduction of small in-memory models to support cleaner screen boundaries
+  - Reduced `lens_core_shell` responsibility to navigation/state coordination
+  - Cleanup and restructuring of architecture, functions, branding, design workflow, and bachelor workflow documentation
+  - Stable validation baseline with `flutter analyze` and `flutter test` passing
+
 ### 005 - Multi-Brand + Privacy + Accessibility
 - Tag: `checkpoint/005-multibrand-privacy-accessibility`
 - Contains:
