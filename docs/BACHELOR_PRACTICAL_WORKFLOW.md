@@ -310,6 +310,23 @@ This section is intended to be updated continuously with each new assignment.
   - Python virtual environment set up at `scripts/.venv/`; service-account keys and `.venv/` excluded from version control.
   - Added `CLAUDE.md` to project root with mandatory plan-before-code workflow, B2B2C constraints, checkpoint commit protocol, and seed script conventions.
 
+### Assignment 015
+
+- Optician picker in lens registration flow.
+- Output:
+  - Replaced the free-text optician `TextField` in `RegisterLensScreen` with a tappable selector row.
+  - Tapping opens `_OpticianPickerSheet` (modal bottom sheet with `DraggableScrollableSheet`):
+    - Search field — filters list using `OpticianService.filterByQuery`.
+    - "Near Me" icon button — requests device location via `Geolocator` and sorts by `OpticianService.sortByProximity` (same pattern as `FindOpticianScreen`).
+    - "No optician" row at the top — explicitly skips optician selection.
+    - Scrollable list of `_OpticianPickerTile` widgets showing name, zip + city, and optional distance when Near Me is active.
+  - Sentinel `AppOptician` object (`id: '__none__'`) distinguishes explicit skip from accidental sheet dismissal.
+  - Selector row shows selected optician name in primary colour with a `×` clear button, or a hint string with search icon when nothing is selected.
+  - `RegisterLensScreen` now requires `List<AppOptician> opticians` from the shell.
+  - `LensCoreShell._openRegisterLens()` loads the optician list via the existing `_cachedOpticians` lazy cache before pushing the screen.
+  - Submission uses `_selectedOptician?.name ?? ''` (empty string replaces the old `'Unknown'` fallback).
+  - `flutter analyze` — 0 issues.
+
 ---
 
 ## Update Protocol for Future Assignments

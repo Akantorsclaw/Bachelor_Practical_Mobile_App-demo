@@ -244,12 +244,15 @@ class _LensCoreShellState extends State<LensCoreShell> {
 
   /// Opens lens registration as a pushed detail screen.
   Future<void> _openRegisterLens() async {
+    _cachedOpticians ??= await _opticianService.fetchAll();
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RegisterLensScreen(
           onRegisterLens: _addLens,
           qrParser: _qrParser,
           onTabSelected: _navigateFromOverlay,
+          opticians: _cachedOpticians!,
         ),
       ),
     );

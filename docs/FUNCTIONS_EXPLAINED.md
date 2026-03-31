@@ -174,7 +174,7 @@ Private methods on `_LensCoreShellState`:
 |---|---|
 | `_selectTab(int index)` | Sets the active bottom navigation tab. |
 | `_navigateFromOverlay(int index)` | Pops all routes to root, then sets the active tab. Used by detail screens to return to a specific tab. |
-| `_openRegisterLens()` | Pushes `RegisterLensScreen`. |
+| `_openRegisterLens()` | Lazily loads the optician list via `OpticianService.fetchAll` on first call (same `_cachedOpticians` cache as `_openFindOptician`), then pushes `RegisterLensScreen` with the list. |
 | `_openPassport(LensItem lens)` | Pushes `LensPassportScreen` for the given lens. |
 | `_openRateLensForLens(LensItem lens)` | Pushes `RateLensScreen` if no review exists for the lens; pushes `EditRatingScreen` if one does. |
 | `_openRateMenu()` | Opens the lens picker directly and then pushes the appropriate rating screen. (Rate Optician flow is currently disabled.) |
@@ -211,9 +211,27 @@ Private methods on `_LensCoreShellState`:
 
 ### `RegisterLensScreen` — `lib/core/screens/register_lens_screen.dart`
 
+Receives `List<AppOptician> opticians` from the shell. Tracks `AppOptician? _selectedOptician` (null = no optician selected).
+
 | Method | Description |
 |---|---|
 | `_scanQrCode()` | Pushes `QrScannerScreen`. On return, calls `LensPassQrParser.parse` on the raw value and pre-fills the name field with the lens design if available. |
+| `_openOpticianPicker()` | Shows `_OpticianPickerSheet` as a `showModalBottomSheet`. If the result is the `_noOpticianSentinel`, clears the selection; otherwise sets `_selectedOptician` to the returned `AppOptician`. |
+
+#### `_OpticianPickerSheet` (private `StatefulWidget`)
+
+Modal bottom sheet using `DraggableScrollableSheet`. Accepts the full `opticians` list. State: `_searchController`, `_filtered`, `_userPosition`, `_nearMeActive`.
+
+| Method | Description |
+|---|---|
+| `_applyFilters()` | Chains `OpticianService.filterByQuery` on the current search text, then `OpticianService.sortByProximity` if Near Me is active. |
+| `_toggleNearMe()` | Requests location permission via `Geolocator`; on success stores the position and calls `_applyFilters()`. Same pattern as `FindOpticianScreen._toggleNearMe`. |
+
+Layout: drag handle → search row (TextField + Near Me `IconButton`) → `Divider` → "No optician" `ListTile` (pops `_noOpticianSentinel`) → `ListView.separated` of `_OpticianPickerTile`. Tapping a tile pops the selected `AppOptician`.
+
+#### `_OpticianPickerTile` (private `StatelessWidget`)
+
+`ListTile` with store `CircleAvatar`, optician name as title, `zipCode city` as subtitle, and optional distance string when Near Me is active.
 
 ### `LensPassportScreen` — `lib/core/screens/lens_passport_screen.dart`
 

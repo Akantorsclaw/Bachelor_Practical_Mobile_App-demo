@@ -96,7 +96,7 @@ Each file contains exactly one primary screen and its private helper widgets.
 | File | Screen | Contents |
 |---|---|---|
 | `dashboard_screen.dart` | Home tab | Stats summary, latest lens card, quick action grid (Register, My Lenses, Rate, Find Optician), check-up reminder |
-| `register_lens_screen.dart` | Lens registration | Name input, QR scan (required first step), optician field, register action; also `QrScannerScreen` |
+| `register_lens_screen.dart` | Lens registration | Name input, QR scan (required first step), optician picker (search / Near Me / skip), register action; also `QrScannerScreen`, `_OpticianPickerSheet`, `_OpticianPickerTile` |
 | `lenses_list_screen.dart` | My Lenses tab | Per-lens cards with delete confirmation and review shortcut |
 | `lens_passport_screen.dart` | Digital Lens Passport | Three-tab passport: Lens Details, Prescription, Frame Measurements; all `_Passport*` helpers |
 | `rate_lens_screen.dart` | Rating | `RateLensScreen` (new review), `EditRatingScreen` (edit/delete); all rating helper widgets |
