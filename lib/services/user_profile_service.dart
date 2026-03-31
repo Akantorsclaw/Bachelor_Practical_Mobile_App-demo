@@ -87,4 +87,5 @@ class UserProfileService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
+
 }

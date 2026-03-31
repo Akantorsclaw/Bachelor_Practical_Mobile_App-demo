@@ -26,7 +26,7 @@ class RegisterLensScreen extends StatefulWidget {
 
 class _RegisterLensScreenState extends State<RegisterLensScreen> {
   final _serial = TextEditingController();
-  String? _selectedOptician;
+  final _optician = TextEditingController();
   LensPassportData? _parsedPassport;
 
   Future<void> _scanQrCode() async {
@@ -55,6 +55,7 @@ class _RegisterLensScreenState extends State<RegisterLensScreen> {
   @override
   void dispose() {
     _serial.dispose();
+    _optician.dispose();
     super.dispose();
   }
 
@@ -95,25 +96,33 @@ class _RegisterLensScreenState extends State<RegisterLensScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          OutlinedButton.icon(
+          FilledButton.icon(
             onPressed: _scanQrCode,
-            icon: Icon(Icons.qr_code_scanner, color: palette.textPrimary),
+            icon: Icon(Icons.qr_code_scanner, color: palette.onPrimary),
             label: Text(
               'Scan QR code',
               style: TextStyle(
-                color: palette.textPrimary,
+                color: palette.onPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            style: OutlinedButton.styleFrom(
+            style: FilledButton.styleFrom(
+              backgroundColor: palette.primary,
               minimumSize: const Size.fromHeight(58),
-              side: BorderSide(color: palette.border, width: 2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
           ),
+          if (_parsedPassport == null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Scan a QR code to continue',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: palette.textSecondary),
+            ),
+          ],
           const SizedBox(height: 20),
           Text(
             'STORE',
@@ -125,9 +134,10 @@ class _RegisterLensScreenState extends State<RegisterLensScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedOptician,
+          TextFormField(
+            controller: _optician,
             decoration: InputDecoration(
+              hintText: 'Optician name',
               filled: true,
               fillColor: palette.surfaceMuted,
               border: OutlineInputBorder(
@@ -135,20 +145,13 @@ class _RegisterLensScreenState extends State<RegisterLensScreen> {
                 borderSide: BorderSide.none,
               ),
             ),
-            hint: const Text('Select Optician'),
-            items: const [
-              DropdownMenuItem(value: 'Optician A', child: Text('Optician A')),
-              DropdownMenuItem(value: 'Optician B', child: Text('Optician B')),
-              DropdownMenuItem(value: 'Optician C', child: Text('Optician C')),
-            ],
-            onChanged: (value) => setState(() => _selectedOptician = value),
           ),
           const SizedBox(height: 28),
           FilledButton.icon(
-            onPressed: () async {
+            onPressed: _parsedPassport == null ? null : () async {
               final nowDate = DateTime.now().toIso8601String().split('T').first;
               final parsed = _parsedPassport;
-              final optician = _selectedOptician ?? '';
+              final optician = _optician.text.trim();
               await widget.onRegisterLens(
                 LensItem(
                   id: '',

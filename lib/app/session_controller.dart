@@ -251,6 +251,7 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+
   /// Signs out and returns the app to auth flow.
   Future<void> signOut() async {
     _setBusy(true);

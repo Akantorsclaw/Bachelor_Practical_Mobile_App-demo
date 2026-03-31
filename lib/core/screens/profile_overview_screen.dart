@@ -9,7 +9,6 @@ class ProfileOverviewScreen extends StatelessWidget {
     super.key,
     required this.name,
     required this.email,
-    required this.selectedOptician,
     required this.memberSince,
     required this.lensCount,
     required this.reviewCount,
@@ -22,7 +21,6 @@ class ProfileOverviewScreen extends StatelessWidget {
 
   final String name;
   final String email;
-  final String selectedOptician;
   final String memberSince;
   final int lensCount;
   final int reviewCount;
@@ -256,22 +254,6 @@ class ProfileOverviewScreen extends StatelessWidget {
                 value: email,
                 trailingIcon: Icons.edit_outlined,
                 onTap: () => _editProfile(context),
-              ),
-              const SizedBox(height: 14),
-              _ProfileInfoRowCard(
-                icon: Icons.location_on_outlined,
-                label: 'Optician',
-                value: selectedOptician,
-                trailingIcon: Icons.chevron_right_rounded,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Change optician flow not implemented yet.',
-                      ),
-                    ),
-                  );
-                },
               ),
             ],
           ),

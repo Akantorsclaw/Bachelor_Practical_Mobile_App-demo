@@ -6,14 +6,20 @@ import 'package:flutter/material.dart';
 import '../app/session_controller.dart';
 import '../branding/brand_context.dart';
 import '../models/app_lens.dart';
+import '../models/app_optician.dart';
 import '../models/app_review.dart';
 import '../models/lens_item.dart';
 import '../models/rating_data.dart';
+import '../models/app_news_item.dart';
 import '../services/lens_pass_qr_parser.dart';
 import '../services/lens_service.dart';
+import '../services/news_service.dart';
+import '../services/optician_service.dart';
 import '../services/review_service.dart';
 import '../shared/app_widgets.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/find_optician_screen.dart';
+import 'screens/updates_screen.dart';
 import 'screens/lens_passport_screen.dart';
 import 'screens/lenses_list_screen.dart';
 import 'screens/notification_settings_screen.dart';
@@ -36,19 +42,25 @@ class _LensCoreShellState extends State<LensCoreShell> {
   static const _qrParser = LensPassQrParser();
   final _lensService = LensService(FirebaseFirestore.instance);
   final _reviewService = ReviewService(FirebaseFirestore.instance);
+  final _opticianService = OpticianService(FirebaseFirestore.instance);
+  final _newsService = NewsService(FirebaseFirestore.instance);
+  List<AppOptician>? _cachedOpticians;
 
   int _index = 0;
   bool _loadingLenses = true;
   List<LensItem> _lenses = [];
   List<AppReview> _reviews = [];
+  List<AppNewsItem> _newsItems = [];
   StreamSubscription<List<AppLens>>? _lensesSubscription;
   StreamSubscription<List<AppReview>>? _reviewsSubscription;
+  StreamSubscription<List<AppNewsItem>>? _newsSubscription;
 
   @override
   void initState() {
     super.initState();
     _subscribeLenses();
     _subscribeReviews();
+    _subscribeNews();
   }
 
   @override
@@ -64,6 +76,7 @@ class _LensCoreShellState extends State<LensCoreShell> {
   void dispose() {
     _lensesSubscription?.cancel();
     _reviewsSubscription?.cancel();
+    _newsSubscription?.cancel();
     super.dispose();
   }
 
@@ -125,6 +138,19 @@ class _LensCoreShellState extends State<LensCoreShell> {
         );
   }
 
+  void _subscribeNews() {
+    _newsSubscription?.cancel();
+    _newsSubscription = _newsService.watchNews().listen(
+      (data) {
+        if (!mounted) return;
+        setState(() => _newsItems = data);
+      },
+      onError: (_) {
+        // News is non-critical — silently ignore errors.
+      },
+    );
+  }
+
   LensItem _toLensItem(AppLens lens) {
     return LensItem(
       id: lens.id,
@@ -179,6 +205,20 @@ class _LensCoreShellState extends State<LensCoreShell> {
     Navigator.of(context).popUntil((route) => route.isFirst);
     if (!mounted) return;
     setState(() => _index = index);
+  }
+
+  /// Opens the Find Optician screen. Lazily loads the optician list on first use.
+  Future<void> _openFindOptician() async {
+    _cachedOpticians ??= await _opticianService.fetchAll();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FindOpticianScreen(
+          opticians: _cachedOpticians!,
+          onTabSelected: _navigateFromOverlay,
+        ),
+      ),
+    );
   }
 
   /// Opens lens registration as a pushed detail screen.
@@ -313,131 +353,10 @@ class _LensCoreShellState extends State<LensCoreShell> {
     );
   }
 
-  /// Opens optician rating flow and stores latest result in memory.
-  Future<void> _openRateOptician() async {
-    final uid = widget.controller.userId;
-    if (uid == null) return;
-    final opticianName = _lenses.isNotEmpty
-        ? _lenses.first.optician
-        : 'Your Optician';
-    final existing = _firstReviewWhere((r) => r.id == 'optician_primary');
-
-    if (existing == null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => RateLensScreen(
-            title: 'Rate Your Optician',
-            submitLabel: 'Submit Feedback',
-            targetName: opticianName,
-            targetSubtitle: 'Optician partner',
-            aspectLabels: const [
-              'Customer Service',
-              'Expertise',
-              'Store Experience',
-            ],
-            onTabSelected: _navigateFromOverlay,
-            onSubmit: (data) async {
-              await _reviewService.upsertReview(
-                uid,
-                AppReview(
-                  id: 'optician_primary',
-                  targetType: ReviewTargetType.optician,
-                  targetId: 'primary',
-                  targetName: opticianName,
-                  targetSubtitle: 'Optician partner',
-                  overallRating: data.stars,
-                  aspectRatings: data.aspectRatings,
-                  comment: data.comment,
-                ),
-              );
-            },
-          ),
-        ),
-      );
-      return;
-    }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => EditRatingScreen(
-          title: 'Edit Your Review',
-          targetName: existing.targetName,
-          targetSubtitle: existing.targetSubtitle,
-          aspectLabels: const [
-            'Customer Service',
-            'Expertise',
-            'Store Experience',
-          ],
-          initialRating: RatingData(
-            stars: existing.overallRating,
-            comment: existing.comment,
-            ratedAt: existing.updatedAt ?? DateTime.now(),
-            aspectRatings: existing.aspectRatings,
-          ),
-          onTabSelected: _navigateFromOverlay,
-          onUpdate: (data) async {
-            await _reviewService.upsertReview(
-              uid,
-              AppReview(
-                id: existing.id,
-                targetType: existing.targetType,
-                targetId: existing.targetId,
-                targetName: existing.targetName,
-                targetSubtitle: existing.targetSubtitle,
-                overallRating: data.stars,
-                aspectRatings: data.aspectRatings,
-                comment: data.comment,
-              ),
-            );
-          },
-          onDelete: () => _reviewService.deleteReview(uid, existing.id),
-        ),
-      ),
-    );
-  }
-
   Future<void> _openRateMenu() async {
-    final palette = context.brandPalette;
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: Icon(
-                    Icons.remove_red_eye_outlined,
-                    color: palette.primary,
-                  ),
-                  title: const Text('Rate Lens'),
-                  onTap: () => Navigator.of(context).pop('lens'),
-                ),
-                ListTile(
-                  leading: Icon(
-                    Icons.store_mall_directory_outlined,
-                    color: palette.primary,
-                  ),
-                  title: const Text('Rate Optician'),
-                  onTap: () => Navigator.of(context).pop('optician'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (!mounted || choice == null) return;
-    if (choice == 'lens') {
-      final lens = await _pickLensForRating();
-      if (lens == null) return;
-      await _openRateLensForLens(lens);
-    } else {
-      await _openRateOptician();
-    }
+    final lens = await _pickLensForRating();
+    if (lens == null) return;
+    await _openRateLensForLens(lens);
   }
 
   /// Opens profile notification settings screen.
@@ -585,6 +504,7 @@ class _LensCoreShellState extends State<LensCoreShell> {
     final palette = context.brandPalette;
     final currentLens = _lenses.isEmpty ? null : _lenses.first;
     final latestReviewTime = _reviews.isEmpty ? null : _reviews.first.updatedAt;
+    final alerts = computeAlerts(lenses: _lenses, reviews: _reviews);
     final pages = [
       DashboardScreen(
         userName: widget.controller.userName,
@@ -597,6 +517,7 @@ class _LensCoreShellState extends State<LensCoreShell> {
         onGoRegister: _openRegisterLens,
         onGoLenses: () => setState(() => _index = 1),
         onRate: _openRateMenu,
+        onFindOptician: _openFindOptician,
         onOpenPassport: () async {
           if (currentLens == null) {
             if (!mounted) return;
@@ -619,9 +540,6 @@ class _LensCoreShellState extends State<LensCoreShell> {
       ProfileOverviewScreen(
         name: widget.controller.userName,
         email: widget.controller.userEmail,
-        selectedOptician: _lenses.isEmpty
-            ? 'No optician selected'
-            : _lenses.first.optician,
         memberSince: _formatMemberSince(
           widget.controller.profile?.createdAt ??
               widget.controller.profile?.gdprConsentAt,
@@ -633,6 +551,12 @@ class _LensCoreShellState extends State<LensCoreShell> {
         onNotificationSettings: _openNotificationSettings,
         onPrivacy: _openPrivacyDataProtection,
         onLogout: widget.controller.signOut,
+      ),
+      UpdatesScreen(
+        alerts: alerts,
+        newsItems: _newsItems,
+        onTabSelected: _navigateFromOverlay,
+        onRateLens: _openRateMenu,
       ),
     ];
 
@@ -669,9 +593,8 @@ class _LensCoreShellState extends State<LensCoreShell> {
         ),
         bottomNavigationBar: AppBottomNavigation(
           selectedIndex: _index,
-          onSelected: (index) {
-            _selectTab(index);
-          },
+          onSelected: _selectTab,
+          updatesCount: alerts.length,
         ),
       ),
     );

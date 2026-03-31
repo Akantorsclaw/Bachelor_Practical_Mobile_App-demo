@@ -115,10 +115,14 @@ class AppBottomNavigation extends StatelessWidget {
     super.key,
     required this.selectedIndex,
     required this.onSelected,
+    this.updatesCount = 0,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+
+  /// Number of unread alerts — shows a badge on the Updates tab when > 0.
+  final int updatesCount;
 
   @override
   Widget build(BuildContext context) {
@@ -152,21 +156,34 @@ class AppBottomNavigation extends StatelessWidget {
         backgroundColor: _usesDarkChrome(context)
             ? palette.surfaceStrong
             : palette.surfaceMuted,
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.remove_red_eye_outlined),
             selectedIcon: Icon(Icons.remove_red_eye),
             label: 'Lenses',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Profile',
+          ),
+          NavigationDestination(
+            icon: Badge(
+              label: Text('$updatesCount'),
+              isLabelVisible: updatesCount > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            selectedIcon: Badge(
+              label: Text('$updatesCount'),
+              isLabelVisible: updatesCount > 0,
+              child: const Icon(Icons.notifications),
+            ),
+            label: 'Updates',
           ),
         ],
       ),

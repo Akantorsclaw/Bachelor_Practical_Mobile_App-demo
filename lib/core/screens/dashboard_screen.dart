@@ -18,6 +18,7 @@ class DashboardScreen extends StatelessWidget {
     required this.onGoLenses,
     required this.onRate,
     required this.onOpenPassport,
+    required this.onFindOptician,
   });
 
   final String userName;
@@ -31,6 +32,7 @@ class DashboardScreen extends StatelessWidget {
   final VoidCallback onGoLenses;
   final Future<void> Function() onRate;
   final Future<void> Function() onOpenPassport;
+  final Future<void> Function() onFindOptician;
 
   @override
   Widget build(BuildContext context) {
@@ -123,9 +125,9 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: _quickActionCard(
                 context,
-                icon: Icons.workspace_premium_outlined,
-                title: 'Lens Passport',
-                onTap: () => onOpenPassport(),
+                icon: Icons.location_on_outlined,
+                title: 'Find Optician',
+                onTap: () => onFindOptician(),
               ),
             ),
           ],
