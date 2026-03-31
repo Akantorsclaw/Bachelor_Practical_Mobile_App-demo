@@ -107,6 +107,21 @@ Converts Firebase error codes into user-facing messages.
 | `upsertReview` | `(String uid, AppReview review) → Future<void>` | Creates or updates a review document. |
 | `deleteReview` | `(String uid, String reviewId) → Future<void>` | Removes a review document. |
 
+### `OpticianService`
+
+| Method | Signature | Description |
+|---|---|---|
+| `fetchAll` | `() → Future<List<AppOptician>>` | One-time fetch of all documents in `opticians/`. |
+| `filterByQuery` *(static)* | `(List<AppOptician>, String query) → List<AppOptician>` | Case-insensitive filter on name, city, and state. |
+| `sortByProximity` *(static)* | `(List<AppOptician>, Position) → List<AppOptician>` | Returns a copy sorted by distance from the given device position. |
+| `distanceKm` *(static)* | `(AppOptician, Position) → double?` | Returns the great-circle distance in kilometres, or `null` if the optician has no GeoPoint. |
+
+### `NewsService`
+
+| Method | Signature | Description |
+|---|---|---|
+| `watchNews` | `({int limit}) → Stream<List<AppNewsItem>>` | Real-time stream of up to `limit` news items from `news/`, ordered newest-first. Default limit: 30. |
+
 ### `LensPassQrParser`
 
 | Method | Signature | Description |
@@ -144,6 +159,14 @@ Private methods on `_LensCoreShellState`:
 |---|---|
 | `_subscribeLenses()` | Cancels any existing subscription and opens a new `LensService.watchLenses` stream for the current user. Maps `AppLens` documents to `LensItem` UI models. |
 | `_subscribeReviews()` | Cancels any existing subscription and opens a new `ReviewService.watchReviews` stream. |
+| `_subscribeNews()` | Opens a `NewsService.watchNews` stream. Errors surface as a snackbar. |
+
+### Dismissed Alerts
+
+| Method | Description |
+|---|---|
+| `_loadDismissedAlerts()` | Reads the `'dismissed_alerts'` string list from `SharedPreferences` on startup and populates `_dismissedAlertKeys`. |
+| `_dismissAlert(String key)` | Adds `key` to `_dismissedAlertKeys`, calls `setState`, and persists the updated set to `SharedPreferences`. |
 
 ### Navigation
 
@@ -154,8 +177,8 @@ Private methods on `_LensCoreShellState`:
 | `_openRegisterLens()` | Pushes `RegisterLensScreen`. |
 | `_openPassport(LensItem lens)` | Pushes `LensPassportScreen` for the given lens. |
 | `_openRateLensForLens(LensItem lens)` | Pushes `RateLensScreen` if no review exists for the lens; pushes `EditRatingScreen` if one does. |
-| `_openRateOptician()` | Pushes `RateLensScreen` or `EditRatingScreen` for the primary optician review (`id: 'optician_primary'`). |
-| `_openRateMenu()` | Presents a bottom sheet to choose between rating a lens or an optician. |
+| `_openRateMenu()` | Opens the lens picker directly and then pushes the appropriate rating screen. (Rate Optician flow is currently disabled.) |
+| `_openFindOptician()` | Lazily loads the optician list via `OpticianService.fetchAll` on first call, then pushes `FindOpticianScreen`. |
 | `_openNotificationSettings()` | Pushes `NotificationSettingsScreen`. |
 | `_openPrivacyDataProtection()` | Pushes `PrivacyDataProtectionScreen` with current privacy preference values from the session profile. |
 | `_pickLensForRating() → Future<LensItem?>` | Presents a bottom sheet lens selector. Returns `null` and shows a snackbar if no lenses are registered. |
@@ -222,6 +245,24 @@ Renders `_PassportLensDetails`, `_PassportPrescription`, or `_PassportFrameMeasu
 | `_savePreferences()` | Calls `onSavePreferences` with the current consent toggle state. Displays success or error in a snackbar. |
 | `_handleWithdrawConsent()` | Presents a confirmation dialog, then a non-dismissible loading overlay, then calls `onWithdrawConsent`. Dismisses the overlay and handles errors. |
 
+### `FindOpticianScreen` — `lib/core/screens/find_optician_screen.dart`
+
+| Method / function | Description |
+|---|---|
+| `_nearMe()` | Requests device location via `Geolocator.getCurrentPosition`, then calls `OpticianService.sortByProximity` and sets `_filtered`. |
+| `_onSearch(String query)` | Calls `OpticianService.filterByQuery` and updates `_filtered`. Clears list when query is empty. |
+| `_showSheet(AppOptician)` | Opens a `showModalBottomSheet` with the optician's name, address, phone, opening hours, and campaigns. Info-only — no selection action. |
+
+### `UpdatesScreen` — `lib/core/screens/updates_screen.dart`
+
+Top-level helpers defined alongside the screen:
+
+| Function | Description |
+|---|---|
+| `computeAlerts({lenses, reviews, dismissedKeys, serviceThresholdDays})` | Returns a list of `AppAlert` objects computed from lens ages and missing reviews, excluding keys in `dismissedKeys`. Default service threshold: 150 days. |
+
+`AppAlert` fields: `type` (`AlertType.serviceReminder` or `AlertType.ratingReminder`), `lensId`, `lensName`, `daysOld?`. The `key` getter returns `'${type.name}_$lensId'` and is used as the `SharedPreferences` persistence key.
+
 ---
 
 ## 8. Models — `lib/models/`
@@ -231,6 +272,16 @@ Firestore document model for `users/{uid}`. Fields include `name`, `email`, `con
 
 - `AppUserProfile.fromMap(Map<String, dynamic> map)` — deserialises a Firestore document snapshot.
 - `AppUserProfile.toMap() → Map<String, dynamic>` — serialises for Firestore writes.
+
+### `AppOptician`
+Read-only Firestore model for `opticians/{id}`. Fields: `id`, `externalId`, `name`, `address`, `zipCode`, `city`, `state`, `phone`, `email`, `website`, `location` (GeoPoint?), `openingHours`, `isPremium`, `campaigns`.
+
+- `AppOptician.fromDoc(DocumentSnapshot)` — deserialises a Firestore document.
+
+### `AppNewsItem`
+Read-only Firestore model for `news/{id}`. Fields: `id`, `title`, `body`, `category`, `publishedAt`, `imageUrl?`.
+
+- `AppNewsItem.fromDoc(DocumentSnapshot)` — deserialises a Firestore document.
 
 ### `AppLens`
 Firestore document model for `users/{uid}/lenses/{lensId}`.

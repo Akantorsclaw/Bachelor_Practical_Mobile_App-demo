@@ -50,6 +50,9 @@ This approach allowed continuous progress while keeping the app runnable and tes
 - Cloud Firestore
 - mobile_scanner (QR scanning)
 - flutter_svg (SVG branding assets)
+- geolocator (device location for nearest-optician sorting)
+- flutter_map + latlong2 (OpenStreetMap tile map, no API key required)
+- shared_preferences (local persistence for dismissed alert keys)
 - Android + iOS targets
 
 ## 4. Architecture Strategy
@@ -61,12 +64,13 @@ Core folders:
 - `lib/app/` app bootstrap and session control
 - `lib/auth/` unauthenticated flow screens
 - `lib/core/` authenticated app shell (`lens_core_shell.dart`)
-- `lib/core/screens/` one file per authenticated screen (dashboard, lens list, passport, rating, profile, notifications, privacy, QR registration)
-- `lib/services/` Firebase and parser services
+- `lib/core/screens/` one file per authenticated screen (dashboard, lens list, passport, rating, profile, notifications, privacy, QR registration, find optician, updates)
+- `lib/services/` Firebase and parser services (including optician and news services)
 - `lib/models/` typed data models (Firestore models + UI models)
 - `lib/shared/` reusable widgets/validators
 - `lib/branding/` centralized branding and style tokens
 - `docs/` architecture/function/branding and workflow documentation
+- `scripts/` Python admin seed scripts (firebase-admin, virtual environment at `scripts/.venv/`)
 
 Key design choices:
 
@@ -276,6 +280,35 @@ This section is intended to be updated continuously with each new assignment.
   - No logic or behaviour changes — pure structural split.
   - `flutter analyze` passed with zero issues after split.
   - Updated `ARCHITECTURE_OVERVIEW.md` and `FUNCTIONS_EXPLAINED.md` to reflect new file structure.
+
+### Assignment 013
+
+- Find Optician feature, Updates tab, and UX polish pass.
+- Output:
+  - Added `AppOptician` model (`lib/models/app_optician.dart`) and `OpticianService` (`lib/services/optician_service.dart`).
+  - Added `FindOpticianScreen` (`lib/core/screens/find_optician_screen.dart`): list/map toggle, search, "Near Me" sort, bottom sheet with optician details. Pure discovery tool — no profile assignment.
+  - Seeded 421 real SEIKO DE optician records into Firestore `opticians/` collection via Python admin script.
+  - Removed optician profile assignment (`assignedOpticianId`/`assignedOpticianName`) from `AppUserProfile`, `UserProfileService`, and `SessionController`.
+  - Moved Find Optician to Dashboard quick actions (replaced "Lens Passport" card).
+  - QR scan is now required before lens registration can be submitted (register button disabled until `_parsedPassport != null`; QR button styled as primary).
+  - Added `AppNewsItem` model (`lib/models/app_news_item.dart`) and `NewsService` (`lib/services/news_service.dart`).
+  - Added `UpdatesScreen` (`lib/core/screens/updates_screen.dart`): 4th nav tab with computed alerts (service reminder ≥150 days, rating reminder for unreviewed lenses) and a real-time news feed from Firestore `news/` collection.
+  - Badge on Updates nav tab shows active alert count.
+  - Rate Optician flow disabled; Rate action goes directly to lens picker.
+  - Added `news/` and `opticians/` Firestore security rules.
+  - Added `shared_preferences`, `geolocator`, `flutter_map`, `latlong2` dependencies.
+
+### Assignment 014
+
+- Alert dismissal persistence and news feed seeding.
+- Output:
+  - Added `lensId` field and `key` getter to `AppAlert`; `computeAlerts()` accepts `dismissedKeys` set to filter dismissed alerts.
+  - Swipe-to-dismiss (`Dismissible`) on alert cards — dismissed alert keys persisted via `SharedPreferences` and survive app restarts.
+  - Badge count on Updates tab decreases immediately on dismissal.
+  - News stream errors now surface as a snackbar (previously swallowed silently).
+  - Added `scripts/seed_news.py`: seeds 5 sample HOYA/SEIKO news articles into Firestore `news/` collection using `firebase-admin`.
+  - Python virtual environment set up at `scripts/.venv/`; service-account keys and `.venv/` excluded from version control.
+  - Added `CLAUDE.md` to project root with mandatory plan-before-code workflow, B2B2C constraints, checkpoint commit protocol, and seed script conventions.
 
 ---
 

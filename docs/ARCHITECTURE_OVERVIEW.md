@@ -62,6 +62,8 @@ Initializes the Flutter engine binding, connects to Firebase, instantiates `Sess
 | `user_profile_service.dart` | Firestore `users/{uid}` document CRUD and real-time stream |
 | `lens_service.dart` | Firestore `users/{uid}/lenses` CRUD and real-time stream |
 | `review_service.dart` | Firestore `users/{uid}/reviews` CRUD and real-time stream |
+| `optician_service.dart` | Firestore `opticians/` one-time fetch; static helpers for search filtering, proximity sorting, and distance calculation |
+| `news_service.dart` | Firestore `news/` real-time stream, newest-first, configurable limit |
 | `lens_pass_qr_parser.dart` | Parses MyHOYA QR URL query parameters into `LensPassportData` |
 | `lens_parameter_info_service.dart` | Returns explanatory text for lens parameter codes |
 
@@ -73,9 +75,12 @@ Initializes the Flutter engine binding, connects to Firebase, instantiates `Sess
 
 `LensCoreShell` manages the authenticated session UI:
 
-- Holds real-time subscriptions to the user's lens and review collections
+- Holds real-time subscriptions to the user's lens, review, and news collections
+- Lazily loads the optician list on first `FindOpticianScreen` open
+- Loads and persists dismissed alert keys via `SharedPreferences`
+- Computes local alerts (service reminders, rating reminders) from lens and review data each build, filtered by dismissed keys
 - Owns all navigation callbacks passed to child screens
-- Renders the three-tab bottom navigation (Home, Lenses, Profile)
+- Renders the four-tab bottom navigation (Home, Lenses, Profile, Updates) with a badge on the Updates tab showing the active alert count
 - Delegates all screen content to the files in `lib/core/screens/`
 
 The shell contains no screen-level UI code. It is solely responsible for data ownership and navigation orchestration.
@@ -90,14 +95,16 @@ Each file contains exactly one primary screen and its private helper widgets.
 
 | File | Screen | Contents |
 |---|---|---|
-| `dashboard_screen.dart` | Home tab | Stats summary, latest lens card, quick action grid, check-up reminder |
-| `register_lens_screen.dart` | Lens registration | Name input, QR scan, optician picker, register action; also `QrScannerScreen` |
+| `dashboard_screen.dart` | Home tab | Stats summary, latest lens card, quick action grid (Register, My Lenses, Rate, Find Optician), check-up reminder |
+| `register_lens_screen.dart` | Lens registration | Name input, QR scan (required first step), optician field, register action; also `QrScannerScreen` |
 | `lenses_list_screen.dart` | My Lenses tab | Per-lens cards with delete confirmation and review shortcut |
 | `lens_passport_screen.dart` | Digital Lens Passport | Three-tab passport: Lens Details, Prescription, Frame Measurements; all `_Passport*` helpers |
 | `rate_lens_screen.dart` | Rating | `RateLensScreen` (new review), `EditRatingScreen` (edit/delete); all rating helper widgets |
 | `profile_overview_screen.dart` | Profile tab | Member card, account info, activity stats, settings shortcuts, logout; `_EditProfileDialog` |
 | `notification_settings_screen.dart` | Notification Settings | Channel toggles (push, email), notification-type toggles, save action |
 | `privacy_data_protection_screen.dart` | Privacy & Data Protection | GDPR status, consent toggle, sharing preferences, rights cards, consent withdrawal |
+| `find_optician_screen.dart` | Find Optician | List/map toggle, search bar, "Near Me" proximity sort, `_OpticianCard`, `_OpticianSheet` (info-only) |
+| `updates_screen.dart` | Updates tab | Computed alert cards (swipe-to-dismiss), expandable news feed cards; also `AppAlert`, `AlertType`, `computeAlerts()` |
 
 ---
 
@@ -118,6 +125,8 @@ Handles the unauthenticated flow: login, registration, GDPR consent gate, and pa
 | `app_user_profile.dart` | Firestore user profile document model |
 | `app_lens.dart` | Firestore lens document model |
 | `app_review.dart` | Firestore review document model |
+| `app_optician.dart` | Firestore optician directory document model (read-only) |
+| `app_news_item.dart` | Firestore news feed document model (read-only) |
 | `lens_passport_data.dart` | QR-parsed lens passport fields |
 | `lens_item.dart` | Lightweight UI lens model used by core screens |
 | `rating_data.dart` | In-memory rating payload transferred between rating screens and shell |
@@ -173,11 +182,27 @@ For lens and review data, `LensCoreShell` holds direct `StreamSubscription` inst
 
 ## 13. Firestore Data Paths
 
-| Collection | Path |
+| Collection | Path | Access |
+|---|---|---|
+| User profile | `users/{uid}` | Owner read/write |
+| User lenses | `users/{uid}/lenses/{lensId}` | Owner read/write |
+| User reviews | `users/{uid}/reviews/{reviewId}` | Owner read/write |
+| Optician directory | `opticians/{opticianId}` | Any authenticated user read; write denied (Admin SDK only) |
+| News feed | `news/{itemId}` | Any authenticated user read; write denied (Admin SDK only) |
+
+---
+
+## 15. Admin Seed Scripts
+
+**`scripts/`**
+
+Python scripts using `firebase-admin` to populate read-only Firestore collections.
+
+| Script | Purpose |
 |---|---|
-| User profile | `users/{uid}` |
-| User lenses | `users/{uid}/lenses/{lensId}` |
-| User reviews | `users/{uid}/reviews/{reviewId}` |
+| `seed_news.py` | Seeds 5 sample HOYA/SEIKO news articles into `news/` |
+
+Dependencies are managed in a local virtual environment at `scripts/.venv/`. Service-account key files (`scripts/*.json`) and the venv are excluded from version control. Run with: `cd scripts && .venv/bin/python3 <script>.py`.
 
 ---
 
