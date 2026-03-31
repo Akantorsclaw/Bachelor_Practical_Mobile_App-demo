@@ -46,3 +46,5 @@ app.*.map.json
 
 # Firebase iOS config (keep local, do not commit)
 ios/Runner/GoogleService-Info.plist
+scripts/.venv/
+scripts/*.json

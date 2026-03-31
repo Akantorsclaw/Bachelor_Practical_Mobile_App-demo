@@ -14,13 +14,18 @@ enum AlertType { serviceReminder, ratingReminder }
 class AppAlert {
   const AppAlert({
     required this.type,
+    required this.lensId,
     required this.lensName,
     this.daysOld,
   });
 
   final AlertType type;
+  final String lensId;
   final String lensName;
   final int? daysOld; // only set for serviceReminder
+
+  /// Unique identifier used to persist dismissals.
+  String get key => '${type.name}_$lensId';
 
   String get title {
     switch (type) {
@@ -59,6 +64,7 @@ class AppAlert {
 List<AppAlert> computeAlerts({
   required List<LensItem> lenses,
   required List<AppReview> reviews,
+  Set<String> dismissedKeys = const {},
   int serviceThresholdDays = 150,
 }) {
   final alerts = <AppAlert>[];
@@ -69,19 +75,24 @@ List<AppAlert> computeAlerts({
     if (purchaseDate != null) {
       final age = now.difference(purchaseDate).inDays;
       if (age >= serviceThresholdDays) {
-        alerts.add(
-          AppAlert(
-            type: AlertType.serviceReminder,
-            lensName: lens.name,
-            daysOld: age,
-          ),
+        final alert = AppAlert(
+          type: AlertType.serviceReminder,
+          lensId: lens.id,
+          lensName: lens.name,
+          daysOld: age,
         );
+        if (!dismissedKeys.contains(alert.key)) alerts.add(alert);
       }
     }
 
+    final ratingAlert = AppAlert(
+      type: AlertType.ratingReminder,
+      lensId: lens.id,
+      lensName: lens.name,
+    );
     final hasReview = reviews.any((r) => r.id == 'lens_${lens.id}');
-    if (!hasReview) {
-      alerts.add(AppAlert(type: AlertType.ratingReminder, lensName: lens.name));
+    if (!hasReview && !dismissedKeys.contains(ratingAlert.key)) {
+      alerts.add(ratingAlert);
     }
   }
 
@@ -99,12 +110,14 @@ class UpdatesScreen extends StatelessWidget {
     required this.newsItems,
     required this.onTabSelected,
     required this.onRateLens,
+    required this.onDismissAlert,
   });
 
   final List<AppAlert> alerts;
   final List<AppNewsItem> newsItems;
   final ValueChanged<int> onTabSelected;
   final VoidCallback onRateLens;
+  final void Function(String key) onDismissAlert;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +163,11 @@ class UpdatesScreen extends StatelessWidget {
           if (hasAlerts) ...[
             _sectionHeader(context, 'Alerts'),
             const SizedBox(height: 10),
-            ...alerts.map((a) => _AlertCard(alert: a, onRateLens: onRateLens)),
+            ...alerts.map((a) => _AlertCard(
+              alert: a,
+              onRateLens: onRateLens,
+              onDismiss: onDismissAlert,
+            )),
             const SizedBox(height: 24),
           ],
           if (hasNews) ...[
@@ -182,23 +199,41 @@ class UpdatesScreen extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AlertCard extends StatelessWidget {
-  const _AlertCard({required this.alert, required this.onRateLens});
+  const _AlertCard({
+    required this.alert,
+    required this.onRateLens,
+    required this.onDismiss,
+  });
 
   final AppAlert alert;
   final VoidCallback onRateLens;
+  final void Function(String key) onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.brandPalette;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: palette.secondary,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
+      child: Dismissible(
+        key: Key(alert.key),
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => onDismiss(alert.key),
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(
+            color: Colors.red.shade400,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.delete_outline, color: Colors.white, size: 26),
+        ),
+        child: Material(
+          color: palette.secondary,
           borderRadius: BorderRadius.circular(16),
-          onTap: alert.type == AlertType.ratingReminder ? onRateLens : null,
-          child: Padding(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: alert.type == AlertType.ratingReminder ? onRateLens : null,
+            child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,6 +280,7 @@ class _AlertCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),

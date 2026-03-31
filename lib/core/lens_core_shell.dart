@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app/session_controller.dart';
 import '../branding/brand_context.dart';
@@ -51,9 +52,12 @@ class _LensCoreShellState extends State<LensCoreShell> {
   List<LensItem> _lenses = [];
   List<AppReview> _reviews = [];
   List<AppNewsItem> _newsItems = [];
+  Set<String> _dismissedAlertKeys = {};
   StreamSubscription<List<AppLens>>? _lensesSubscription;
   StreamSubscription<List<AppReview>>? _reviewsSubscription;
   StreamSubscription<List<AppNewsItem>>? _newsSubscription;
+
+  static const _dismissedAlertsKey = 'dismissed_alerts';
 
   @override
   void initState() {
@@ -61,6 +65,20 @@ class _LensCoreShellState extends State<LensCoreShell> {
     _subscribeLenses();
     _subscribeReviews();
     _subscribeNews();
+    _loadDismissedAlerts();
+  }
+
+  Future<void> _loadDismissedAlerts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList(_dismissedAlertsKey) ?? [];
+    if (!mounted) return;
+    setState(() => _dismissedAlertKeys = stored.toSet());
+  }
+
+  Future<void> _dismissAlert(String key) async {
+    setState(() => _dismissedAlertKeys = {..._dismissedAlertKeys, key});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_dismissedAlertsKey, _dismissedAlertKeys.toList());
   }
 
   @override
@@ -145,8 +163,11 @@ class _LensCoreShellState extends State<LensCoreShell> {
         if (!mounted) return;
         setState(() => _newsItems = data);
       },
-      onError: (_) {
-        // News is non-critical — silently ignore errors.
+      onError: (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load news: $e')),
+        );
       },
     );
   }
@@ -504,7 +525,11 @@ class _LensCoreShellState extends State<LensCoreShell> {
     final palette = context.brandPalette;
     final currentLens = _lenses.isEmpty ? null : _lenses.first;
     final latestReviewTime = _reviews.isEmpty ? null : _reviews.first.updatedAt;
-    final alerts = computeAlerts(lenses: _lenses, reviews: _reviews);
+    final alerts = computeAlerts(
+      lenses: _lenses,
+      reviews: _reviews,
+      dismissedKeys: _dismissedAlertKeys,
+    );
     final pages = [
       DashboardScreen(
         userName: widget.controller.userName,
@@ -557,6 +582,7 @@ class _LensCoreShellState extends State<LensCoreShell> {
         newsItems: _newsItems,
         onTabSelected: _navigateFromOverlay,
         onRateLens: _openRateMenu,
+        onDismissAlert: _dismissAlert,
       ),
     ];
 

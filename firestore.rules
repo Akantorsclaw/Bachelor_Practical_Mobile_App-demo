@@ -37,5 +37,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if false;
     }
+
+    // News feed — readable by any authenticated user, not writable from client
+    match /news/{itemId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
   }
 }
