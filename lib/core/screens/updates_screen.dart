@@ -39,11 +39,27 @@ class AppAlert {
   String get body {
     switch (type) {
       case AlertType.serviceReminder:
-        return '$lensName has been in use for $daysOld days. '
-            'Book a checkup with your optician.';
+        return '$lensName — $daysOld days in use.';
       case AlertType.ratingReminder:
-        return 'Share your experience with $lensName '
-            'to help improve your care.';
+        return 'Share your experience with $lensName.';
+    }
+  }
+
+  Color get accentColor {
+    switch (type) {
+      case AlertType.serviceReminder:
+        return const Color(0xFF1A56DB);
+      case AlertType.ratingReminder:
+        return const Color(0xFFB45309);
+    }
+  }
+
+  Color get backgroundColor {
+    switch (type) {
+      case AlertType.serviceReminder:
+        return const Color(0xFFEEF4FF);
+      case AlertType.ratingReminder:
+        return const Color(0xFFFFFBEB);
     }
   }
 
@@ -158,8 +174,24 @@ class UpdatesScreen extends StatelessWidget {
 
     return Scaffold(
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
         children: [
+          Text(
+            'Updates',
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
+              color: palette.textPrimary,
+            ),
+          ),
+          if (hasAlerts) ...[
+            const SizedBox(height: 2),
+            Text(
+              '${alerts.length} active alert${alerts.length == 1 ? '' : 's'}',
+              style: TextStyle(fontSize: 15, color: palette.textSecondary),
+            ),
+          ],
+          const SizedBox(height: 20),
           if (hasAlerts) ...[
             _sectionHeader(context, 'Alerts'),
             const SizedBox(height: 10),
@@ -211,7 +243,8 @@ class _AlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.brandPalette;
+    final accent = alert.accentColor;
+    final bg = alert.backgroundColor;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Dismissible(
@@ -222,65 +255,67 @@ class _AlertCard extends StatelessWidget {
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
           decoration: BoxDecoration(
-            color: Colors.red.shade400,
+            color: accent.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.delete_outline, color: Colors.white, size: 26),
+          child: Icon(Icons.delete_outline, color: accent, size: 26),
         ),
-        child: Material(
-          color: palette.secondary,
-          borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: accent, width: 1.5),
+          ),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: alert.type == AlertType.ratingReminder ? onRateLens : null,
             child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: palette.primary.withValues(alpha: 0.1),
-                  child: Icon(alert.icon, color: palette.primary, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        alert.title,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: palette.textPrimary,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    alert.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    alert.body,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: GestureDetector(
+                      onTap: () => onDismiss(alert.key),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        alert.body,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: palette.textSecondary,
-                        ),
-                      ),
-                      if (alert.type == AlertType.ratingReminder) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap to rate →',
+                        child: const Text(
+                          'Dismiss',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: palette.primary,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF374151),
                           ),
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
